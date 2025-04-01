@@ -5,9 +5,11 @@ import dataclasses
 import logging
 import typing
 
-from .._commands import show_gui
+from Qt import QtWidgets
+
 from .._core import constant
-from . import type_cli
+from .._gui import gui
+from . import exception_type, type_cli
 
 
 @dataclasses.dataclass
@@ -22,7 +24,7 @@ class _CommonArguments:
     verbose: int
 
 
-class _ShowGuiArguments(_CommonArguments):
+class _ShowGuiArguments(_CommonArguments):  # pylint: disable=too-few-public-methods
     """The :ref:`show-gui` subcommand arguments.
 
     Attributes:
@@ -66,16 +68,20 @@ def _parse_arguments(text: list[str]) -> type_cli.ParsedArguments:
     Args:
         text: All user input. e.g. ``["show-gui", "--verbose"]``.
 
+    Raises:
+        UserInputError: If ``text`` has no subcommand.
+
     Returns:
         The parsed output.
 
     """
-    parser = argparse.ArgumentParser(description="The Met Museum Viewer. See subcommands for details.")
+    parser = argparse.ArgumentParser(
+        description="The Met Museum Viewer. See subcommands for details."
+    )
     subparsers = parser.add_subparsers(
         description="All metview inner commands that you can run.",
-        dest="commands",  # NOTE: We need this or `required = True` will not be enforced
+        dest="commands",
     )
-    subparsers.required = True
     description = "Interactively search and filter Works Of Art from The Met in a GUI."
     show_gui_parser = subparsers.add_parser(
         name="show-gui",
@@ -89,7 +95,14 @@ def _parse_arguments(text: list[str]) -> type_cli.ParsedArguments:
     )
     _add_show_gui_subcommand(show_gui_parser)
 
-    return typing.cast(type_cli.ParsedArguments, parser.parse_args(text))
+    namespace = typing.cast(type_cli.ParsedArguments, parser.parse_args(text))
+
+    if not namespace.commands:
+        parser.print_help()
+
+        raise exception_type.UserInputError("You must select a subcommand to continue.")
+
+    return namespace
 
 
 def _set_logger_if_needed(scale: int) -> None:
@@ -115,7 +128,13 @@ def _show_gui(namespace: _ShowGuiArguments) -> None:
     """
     _set_logger_if_needed(namespace.verbose)
 
-    show_gui.run(search_term=namespace.search_term)
+    application = typing.cast(
+        QtWidgets.QApplication,
+        QtWidgets.QApplication.instance() or QtWidgets.QApplication([]),  # type: ignore
+    )
+    window = gui.Window(search_term=namespace.search_term)
+    window.show()
+    application.exec_()
 
 
 def main(text: list[str]) -> None:

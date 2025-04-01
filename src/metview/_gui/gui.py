@@ -4,10 +4,72 @@
 
 from __future__ import annotations
 
+import typing
+
 from Qt import QtCore, QtWidgets
 
+from .models import art_model, model_type
+from .utility_widgets import details_pane
+from . import common_qt
 
-class Widget(QtWidgets.QWidget):
+
+class _ArtworkProxy(QtCore.QSortFilterProxyModel):
+    """Sort and filter artwork based on the user's input."""
+
+    # TODO: Finish this class later
+
+
+class Window(QtWidgets.QWidget):  # pylint: disable=too-few-public-methods
+    """A standalone version of :class:`Widget`.
+
+    This class is not meant to be embedded into other classes via composition.
+    Use :class:`Widget` instead.
+
+    """
+
+    def __init__(
+        self,
+        search_term: str = "",
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        """Change this widget into a standalone viewer GUI.
+
+        Args:
+            search_term: Some Work of Art to initially search with, if any.
+            parent: The GUI that owns this instance, if any.
+
+        Returns:
+            The created instance.
+
+        """
+        super().__init__(parent)
+
+        main_layout = QtWidgets.QVBoxLayout()
+        self.setLayout(main_layout)
+
+        self._close_button = QtWidgets.QPushButton("Close")
+        self._widget = Widget(search_term=search_term, parent=parent)
+
+        main_layout.addWidget(self._widget)
+
+        bottom = QtWidgets.QHBoxLayout()
+        bottom.addStretch()
+        bottom.addWidget(self._close_button)
+        main_layout.addLayout(bottom)
+
+        self.setWindowTitle("MetViewer")
+        # TODO: Add an icon
+        # self.setWindowIcon()
+        self.setWindowFlag(QtCore.Qt.Window)
+
+        self._widget.layout().setContentsMargins(0, 0, 0, 0)
+        self._close_button.setToolTip("Press this to close this GUI window.")
+        self._close_button.clicked.connect(self.close)
+
+
+class Widget(
+    QtWidgets.QWidget
+):  # pylint: disable=too-many-instance-attributes,too-few-public-methods
     """The main ``show-gui`` widget. It can be embedded or a standalone window.
 
     See Also:
@@ -15,7 +77,9 @@ class Widget(QtWidgets.QWidget):
 
     """
 
-    def __init__(self, search_term: str="", parent: QtWidgets.QWidget | None=None) -> None:
+    def __init__(
+        self, search_term: str = "", parent: QtWidgets.QWidget | None = None
+    ) -> None:
         """Initialize the child widgets for this instance.
 
         Args:
@@ -28,47 +92,126 @@ class Widget(QtWidgets.QWidget):
         main_layout = QtWidgets.QVBoxLayout()
         self.setLayout(main_layout)
 
+        # NOTE: The top widgets
         self._filter_type = QtWidgets.QPushButton("Filter:")
         self._filter_line = QtWidgets.QLineEdit()
         self._filter_details = QtWidgets.QPushButton("Details")
+
+        # NOTE: The lower artwork + details widgets
+        #
+        # +-------+-------------------------+
+        # | art_a | name: art_a             |
+        # | art_b | artist: Some Person Jr. |
+        # +-------+-------------------------+
+        #
+        self._artwork_view = QtWidgets.QListView()
+        self._details_switcher = QtWidgets.QStackedWidget()
+        self._details_no_selection_label = QtWidgets.QLabel(
+            "This view will show art information. Please select some art on the left."
+        )
+        self._artwork_splitter = QtWidgets.QSplitter()
+        self._details_pane = details_pane.DetailsPane()
+        self._details_switcher.addWidget(self._details_no_selection_label)
+        self._details_switcher.addWidget(self._details_pane)
+        self._artwork_splitter.addWidget(self._artwork_view)
+        self._artwork_splitter.addWidget(self._details_switcher)
 
         top = QtWidgets.QHBoxLayout()
         top.addWidget(self._filter_type)
         top.addWidget(self._filter_line)
         top.addWidget(self._filter_details)
-
         main_layout.addLayout(top)
+        main_layout.addWidget(self._artwork_splitter)
 
         self._initialize_default_settings()
 
+        if search_term:
+            self._filter_line.setText(search_term)
+
     def _initialize_default_settings(self) -> None:
         """Set the default appearance of child widgets."""
+        common_qt.initialize_framed_label(self._details_no_selection_label)
+        self._artwork_splitter.setHandleWidth(25)  # Arbitrary, thick value
+        self._details_switcher.setCurrentWidget(self._details_no_selection_label)
         self._filter_line.setPlaceholderText("Example: La Grenouillère")
 
         self._filter_type.setToolTip("Press this to filter by artwork-type.")
         self._filter_line.setToolTip("Type the name of the Work of Art here.")
         self._filter_details.setToolTip("Extra, less common filter actions.")
 
-    @classmethod
-    def create_as_window(
-        cls,
-        search_term: str="",
-        parent: QtWidgets.QWidget | None=None,
-    ) -> Widget:
-        """Change this widget into a standalone viewer GUI.
+        self._details_pane.setToolTip("Information about the selected artwork.")
+        self._details_no_selection_label.setToolTip(
+            "If you are seeing this, you need to select some artwork. "
+            "Once you do that, this widget will be replaced with the artwork details."
+        )
 
-        Args:
-            search_term: Some Work of Art to initially search with, if any.
-            parent: The GUI that owns this instance, if any.
+    def _get_current_artworks(self) -> list[model_type.Artwork]:
+        """Get the user's current artwork selection, if any.
+
+        Raises:
+            RuntimeError: If any selected rows somehow did not find artwork.
 
         Returns:
-            The created instance.
+            If the current user artwork selection.
 
         """
-        widget = cls(search_term=search_term, parent=parent)
-        widget.setWindowTitle("MetViewer")
-        # TODO: Add an icon
-        # widget.setWindowIcon()
-        widget.setWindowFlag(QtCore.Qt.Window)
+        model = self._artwork_view.selectionModel()
 
-        return widget
+        if not model:
+            raise RuntimeError(
+                "Artwork view has no selection model. This is a bug, please fix!"
+            )
+
+        indices = model.selectedIndexes()
+        # TODO: Filter by-row
+
+        if len(indices) > 2:
+            raise RuntimeError(
+                'We can only return one artwork at a time. Got "{indices}" indices.'
+            )
+
+        invalids: list[typing.Any] = []
+        output: list[model_type.Artwork] = []
+
+        for index in indices:
+            data = index.data(art_model.Model.artwork_role)
+
+            if not isinstance(data, model_type.Artwork):
+                invalids.append(data)
+
+            output.append(data)
+
+        if invalids:
+            raise RuntimeError(f'Got unknown "{invalids}" data. Expected arkwork!')
+
+        return output
+
+    def _update_details_pane(self) -> None:
+        """Show or hide the details pane if the user has selected some artwork."""
+        if artworks := self._get_current_artworks():
+            self._details_pane.set_current_artworks(artworks)
+            self._details_switcher.setCurrentWidget(self._details_pane)
+        else:
+            self._details_switcher.setCurrentWidget(self._details_no_selection_label)
+
+    def set_model(self, model: art_model.Model) -> None:
+        """Store and display source ``model``.
+
+        Args:
+            model: Some Met Museum-related artwork model.
+
+        Raises:
+            RuntimeError: If ``model`` could not be applied as expected due to a bug.
+
+        """
+        proxy = _ArtworkProxy(parent=self)
+        proxy.setSourceModel(model)
+        self._artwork_view.setModel(proxy)
+        selection_model = self._artwork_view.selectionModel()
+
+        if not selection_model:
+            raise RuntimeError(
+                "Artwork view has no selection model. This is a bug, please fix!"
+            )
+
+        selection_model.selectionChanged.connect(self._update_details_pane)

@@ -2,6 +2,5 @@
 
 from Qt import QtWidgets
 
-
 # IMPORTANT: We need a QApplication or unittests cannot run. Do not remove this line.
 _APPLICATION = QtWidgets.QApplication([])

@@ -1,3 +1,10 @@
+"""Internal exceptions to make CLI / terminal interactions simpler.
+
+Try to define as few custom types as possible (prefer built-in Python types).
+
+"""
+
+
 class CoreException(Exception):
     """A common class that all :ref:`metview` exceptions should inherit from."""
 

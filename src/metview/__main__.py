@@ -10,19 +10,20 @@ import sys
 
 from ._cli import cli, exception_type
 
-
 _ROOT_LOGGER_NAME = "metview"
 
 
 def _initialize_logging() -> None:
     """Add the logging print handlers."""
-    _LOGGER = logging.getLogger(_ROOT_LOGGER_NAME)
-    _HANDLER = logging.StreamHandler(sys.stdout)
-    _HANDLER.setLevel(logging.INFO)
-    _FORMATTER = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    _HANDLER.setFormatter(_FORMATTER)
-    _LOGGER.addHandler(_HANDLER)
-    _LOGGER.setLevel(logging.INFO)
+    logger = logging.getLogger(_ROOT_LOGGER_NAME)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
 
 _initialize_logging()
