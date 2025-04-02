@@ -6,17 +6,35 @@ from __future__ import annotations
 
 import typing
 
-from Qt import QtCore, QtWidgets
+from Qt import QtCore, QtGui, QtWidgets
 
+from .._restapi import met_get
 from .models import art_model, model_type
 from .utility_widgets import details_pane
-from . import common_qt
+from .common import common_qt, iterbot
 
 
 class _ArtworkProxy(QtCore.QSortFilterProxyModel):
     """Sort and filter artwork based on the user's input."""
 
     # TODO: Finish this class later
+
+
+class _MetThread(QtCore.QThread):
+    """Handle any high latency / slow functions here.
+
+    Attributes:
+        identifiers_found:
+            After we query the Met Museum for all Artworks, the found IDs are emitted.
+
+    """
+
+    identifiers_found = QtCore.Signal(list)
+
+    def run(self) -> None:
+        """Look for Met Museum IDs and update the parent thread when it is ready."""
+        identifiers = met_get.get_all_identifiers()
+        self.identifiers_found.emit(identifiers)
 
 
 class Window(QtWidgets.QWidget):  # pylint: disable=too-few-public-methods
@@ -66,6 +84,17 @@ class Window(QtWidgets.QWidget):  # pylint: disable=too-few-public-methods
         self._close_button.setToolTip("Press this to close this GUI window.")
         self._close_button.clicked.connect(self.close)
 
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        """Force any ongoing work to terminate before closing.
+
+        Args:
+            event: The Qt-provided event that handles widget closing.
+
+        """
+        self._widget.close()
+
+        super().closeEvent(event)
+
 
 class Widget(
     QtWidgets.QWidget
@@ -78,13 +107,18 @@ class Widget(
     """
 
     def __init__(
-        self, search_term: str = "", parent: QtWidgets.QWidget | None = None
+        self, search_term: str = "", model: art_model.Model | None=None, parent: QtWidgets.QWidget | None = None
     ) -> None:
         """Initialize the child widgets for this instance.
 
         Args:
-            search_term: Some Work of Art to initially search with, if any.
-            parent: The GUI that owns this instance, if any.
+            search_term:
+                Some Work of Art to initially search for, if any.
+            model:
+                A source model to display in this instance. If none is provided, an
+                empty model is used instead and we query the artwork to show, ourslves.
+            parent:
+                The GUI that owns this instance, if any.
 
         """
         super().__init__(parent)
@@ -116,6 +150,9 @@ class Widget(
         self._artwork_splitter.addWidget(self._artwork_view)
         self._artwork_splitter.addWidget(self._details_switcher)
 
+        # TODO: Add a switcher for when we're querying artwork data
+        self._thread = _MetThread(parent=self)
+
         top = QtWidgets.QHBoxLayout()
         top.addWidget(self._filter_type)
         top.addWidget(self._filter_line)
@@ -127,6 +164,11 @@ class Widget(
 
         if search_term:
             self._filter_line.setText(search_term)
+
+        self.set_model(model or art_model.Model([]))
+
+        self._initialize_interactive_settings()
+        self._thread.run()
 
     def _initialize_default_settings(self) -> None:
         """Set the default appearance of child widgets."""
@@ -144,6 +186,10 @@ class Widget(
             "If you are seeing this, you need to select some artwork. "
             "Once you do that, this widget will be replaced with the artwork details."
         )
+
+    def _initialize_interactive_settings(self) -> None:
+        """Setup any click / automatic functionality for this instance."""
+        self._thread.identifiers_found.connect(self._update_model)
 
     def _get_current_artworks(self) -> list[model_type.Artwork]:
         """Get the user's current artwork selection, if any.
@@ -194,6 +240,17 @@ class Widget(
         else:
             self._details_switcher.setCurrentWidget(self._details_no_selection_label)
 
+    def _update_model(self, identifiers: list[int]) -> None:
+        """Clear and refresh our internal model with ``identifiers``.
+
+        Args:
+            identifiers: Some Met Museum Artwork IDs (integers) to display.
+
+        """
+        proxy = self._artwork_view.model()
+        model = _get_artwork_source_model(proxy)
+        model.update_artwork_identifiers(identifiers)
+
     def set_model(self, model: art_model.Model) -> None:
         """Store and display source ``model``.
 
@@ -215,3 +272,35 @@ class Widget(
             )
 
         selection_model.selectionChanged.connect(self._update_details_pane)
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        """Force any ongoing work to terminate before closing.
+
+        Args:
+            event: The Qt-provided event that handles widget closing.
+
+        """
+        self._thread.terminate()
+
+        super().closeEvent(event)
+
+
+def _get_artwork_source_model(proxy: QtCore.QAbstractItemModel) -> art_model.Model:
+    """Find the model that defines our Artwork objects.
+
+    Args:
+        proxy: A starting model (which may wrap other models).
+
+    Raises:
+        RuntimeError: If no source model could be found.
+
+    Returns:
+        The found source model.
+
+    """
+    source = iterbot.get_lowest_source(proxy)
+
+    if isinstance(source, art_model.Model):
+        return source
+
+    raise RuntimeError(f'Expected a art_model.Model source but got "{source}" instead.')

@@ -24,7 +24,7 @@ class Model(QtCore.QAbstractListModel):
 
     def __init__(
         self,
-        data: typing.Sequence[model_type.Artwork],
+        identifiers: typing.Sequence[int],
         parent: QtCore.QObject | None = None,
     ) -> None:
         """Keep track of some artwork to query later.
@@ -39,7 +39,8 @@ class Model(QtCore.QAbstractListModel):
         """
         super().__init__(parent)
 
-        self._data = data
+        self._identifiers = identifiers
+        self._cache: dict[int, model_type.Artwork] = {}
 
     def _get_artwork(self, index: QtCore.QModelIndex) -> model_type.Artwork:
         """Get the real artwork data from `index``.
@@ -51,13 +52,17 @@ class Model(QtCore.QAbstractListModel):
             The found artwork.
 
         """
-        node = index.internalPointer()
+        identifier = self._identifiers[index.row()]
 
-        return typing.cast(model_type.Artwork, node)
+        if identifier in self._cache:
+            node = self._cache[identifier]
+        else:
+            node = model_type.Artwork(identifier=identifier)
+            self._cache[identifier] = node
 
-    def columnCount(
-        self, _: QtCore.QModelIndex = QtCore.QModelIndex()
-    ) -> int:  # pylint: disable=invalid-name
+        return node
+
+    def columnCount(self, _: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:  # pylint: disable=invalid-name
         """Get the number of columns to show in a view by default.
 
         Args:
@@ -90,26 +95,25 @@ class Model(QtCore.QAbstractListModel):
             return self._get_artwork(index)
 
         if role == QtCore.Qt.ToolTipRole:
-            return str(self._get_artwork(index))
+            return self._get_artwork(index).get_tooltip()
 
         if column == _ARTWORK_COLUMN:
             if role == QtCore.Qt.DisplayRole:
-                return self._get_artwork(index).title
+                return self._get_artwork(index).get_title()
 
             return None
 
+        # TODO: Add date column
         if column == _ARTIST_COLUMN:
             if role == QtCore.Qt.DisplayRole:
-                return self._get_artwork(index).artist
+                return self._get_artwork(index).get_artist()
 
             return None
 
         return None
 
     # TODO: (performance) - Make this faster later (using fetchMore and caching)
-    def rowCount(
-        self, _: QtCore.QModelIndex = QtCore.QModelIndex()
-    ) -> int:  # pylint: disable=invalid-name
+    def rowCount(self, _: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:  # pylint: disable=invalid-name
         """Get the rows to show in the GUI.
 
         Args:
@@ -119,4 +123,22 @@ class Model(QtCore.QAbstractListModel):
             The number of rows to show.
 
         """
-        return len(self._data)
+        return len(self._identifiers)
+
+    def update_artwork_identifiers(self, identifiers: list[int]) -> None:
+        """Clear and refresh this model with ``identifiers``.
+
+        Important:
+            This method reuses the existing Met Museum cache because, we assume, that an
+            ID will only ever point to the same Work of Art for the lifetime of the GUI.
+            (If it didn't, that would be pretty weird).
+
+        Args:
+            identifiers: Some Met Museum Artwork IDs (integers) to display.
+
+        """
+        self.beginResetModel()
+
+        self._identifiers = identifiers
+
+        self.endResetModel()

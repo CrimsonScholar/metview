@@ -5,7 +5,7 @@ import typing
 from Qt import QtGui, QtWidgets
 
 from ..models import model_type
-from .. import common_qt
+from ..common import common_qt
 
 
 class _DetailsPage(QtWidgets.QWidget):
@@ -72,12 +72,12 @@ class _DetailsPage(QtWidgets.QWidget):
 
     def set_current_artwork(self, artwork: model_type.Artwork) -> None:
         """Display the ``artwork`` in this instance."""
-        self._artwork_line.setText(artwork.title)
-        self._artist_line.setText(artwork.artist)
+        self._artwork_line.setText(artwork.get_title())
+        self._artist_line.setText(artwork.get_artist())
 
-        if artwork.thumbnail:
+        if thumbnail := artwork.get_thumbnail_data():
             # TODO: Make sure this code works later
-            self._thumbnail_label.setPixmap(QtGui.QPixmap(artwork.thumbnail))
+            self._thumbnail_label.setPixmap(QtGui.QPixmap(thumbnail))
 
         self._thumbnail_switcher.setCurrentWidget(self._thumbnail_label)
 
@@ -100,4 +100,4 @@ class DetailsPane(QtWidgets.QTabWidget):  # pylint: disable=too-few-public-metho
         # + lots of ``artworks`` selected at-once.
         #
         for artwork in artworks:
-            self.addTab(_DetailsPage(artwork), artwork.title)
+            self.addTab(_DetailsPage(artwork), artwork.get_title())
