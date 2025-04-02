@@ -103,6 +103,8 @@ class Window(QtWidgets.QWidget):  # pylint: disable=too-few-public-methods
         self._close_button.setToolTip("Press this to close this GUI window.")
         self._close_button.clicked.connect(self.close)
 
+        self.resize(650, 400)  # NOTE: A default size that "looks good"
+
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """Force any ongoing work to terminate before closing.
 
@@ -199,8 +201,10 @@ class Widget(
         self._details_switcher.setCurrentWidget(self._details_no_selection_label)
         self._filter_line.setPlaceholderText("Example: La Grenouillère")
 
-        self._artwork_view.setSelectionMode(QtWidgets.QListView.ExtendedSelection)
         self._artwork_view.horizontalHeader().setStretchLastSection(True)
+        self._artwork_view.setSelectionBehavior(QtWidgets.QListView.SelectRows)
+        self._artwork_view.setSelectionMode(QtWidgets.QListView.ExtendedSelection)
+        self._artwork_view.setSortingEnabled(True)
         self._artwork_view.verticalHeader().hide()
 
         self._filter_type.setToolTip("Press this to filter by artwork-type.")
@@ -283,7 +287,6 @@ class Widget(
         proxy = _ArtworkProxy(parent=self)
         proxy.setSourceModel(model)
         self._artwork_view.setModel(proxy)
-        self._artwork_view.resizeColumnsToContents()
         selection_model = self._artwork_view.selectionModel()
 
         if not selection_model:
