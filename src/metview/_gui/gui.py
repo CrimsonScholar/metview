@@ -192,7 +192,7 @@ class Widget(
         )
 
     def _initialize_interactive_settings(self) -> None:
-        """Setup any click / automatic functionality for this instance."""
+        """Create any click / automatic functionality for this instance."""
         self._thread.identifiers_found.connect(self._update_model)
 
     def _get_current_artworks(self) -> list[model_type.Artwork]:
