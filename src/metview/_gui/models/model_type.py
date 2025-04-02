@@ -1,10 +1,11 @@
 """Internal data to define Qt + MVC types."""
 
+import datetime
 import functools
 import textwrap
 import typing
 
-from ..._restapi import met_get
+from ..._restapi import met_get, met_get_type
 
 
 class Artwork:
@@ -29,8 +30,7 @@ class Artwork:
             Title: {self.get_title() or "<No title found>"}
             Artist: {self.get_artist() or "<No artist name found>"}
             Classification: {self.get_classification() or "<No classification found>"}
-            Has Thumbnail: {bool(self.get_thumbnail_data())}
-            """
+            Has Thumbnail: {bool(self.get_thumbnail_data())}"""
         )
 
     # TODO: Consider refactoring this ``if precompute ... return foo`` pattern
@@ -41,6 +41,14 @@ class Artwork:
             self._details = typing.cast(met_get.ObjectDetails, self._details)
 
         return self._details.artist
+
+    def get_datetime_range(self) -> met_get_type.DatetimeRange:
+        """Get type / method used to create the artwork."""
+        if not self._details:
+            self.precompute_details()
+            self._details = typing.cast(met_get.ObjectDetails, self._details)
+
+        return self._details.datetime_range
 
     def get_classification(self) -> str | None:
         """Get type / method used to create the artwork."""

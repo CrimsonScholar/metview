@@ -36,6 +36,7 @@ class _DetailsPage(QtWidgets.QWidget):
         self._thumbnail_switcher = QtWidgets.QStackedWidget()
         self._thumbnail_switcher.addWidget(self._no_thumbnail_label)
 
+        # TODO: Add better column stretch
         main_layout.addWidget(self._artwork_label, 0, 0)
         main_layout.addWidget(self._artwork_line, 0, 1)
         main_layout.addWidget(self._artist_label, 1, 0)

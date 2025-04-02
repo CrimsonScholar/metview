@@ -5,9 +5,12 @@ import typing
 from Qt import QtCore
 
 from . import model_type
+from ..._restapi import met_get_type
+
 
 _ARTWORK_COLUMN = 0
-_ARTIST_COLUMN = 1
+_DATE_COLUMN = 1
+_ARTIST_COLUMN = 2
 
 
 class Model(QtCore.QAbstractListModel):
@@ -17,10 +20,15 @@ class Model(QtCore.QAbstractListModel):
         artwork_role:
             The role that gets the underlying Met API data. Be careful with this role
             (use it only in read-only contexts).
+        data_role:
+            If an index has a rich / special representation and isn't "just a string",
+            this role can be used to retrieve it. Be careful with this role (use it only
+            in read-only contexts).
 
     """
 
     artwork_role = QtCore.Qt.UserRole
+    data_role = QtCore.Qt.UserRole + 1
 
     def __init__(
         self,
@@ -62,6 +70,59 @@ class Model(QtCore.QAbstractListModel):
 
         return node
 
+    def headerData(
+        self,
+        section: int,
+        orientation: QtCore.Qt.Orientation,
+        role: QtCore.Qt.ItemDataRole = QtCore.Qt.DisplayRole,
+    ) -> str | None:
+        """Describe the columns of this model.
+
+        Args:
+            section: The column / row to query header data for.
+            orientation: If the header is horizontal or vertical (always horizontal).
+            role: The chosen representation for the header.
+
+        Returns:
+            The header text, if any.
+
+        """
+        if orientation == QtCore.Qt.Vertical:
+            return None
+
+        if section == _ARTWORK_COLUMN:
+            if role == QtCore.Qt.DisplayRole:
+                return "Title"
+
+            if role == QtCore.Qt.ToolTipRole:
+                return "The name of the artwork, if any"
+
+            return None
+
+        if section == _DATE_COLUMN:
+            if role == QtCore.Qt.DisplayRole:
+                return "Date"
+
+            if role == QtCore.Qt.ToolTipRole:
+                return (
+                    "The year or expected period when the art was made. "
+                    "If some art took multiple years or the time period is unknown, "
+                    "a date range is given."
+                )
+
+            return None
+
+        if section == _ARTIST_COLUMN:
+            if role == QtCore.Qt.DisplayRole:
+                return "Artist"
+
+            if role == QtCore.Qt.ToolTipRole:
+                return "The person, group, or entity that created the art."
+
+            return None
+
+        return None
+
     def columnCount(
         self, _: QtCore.QModelIndex = QtCore.QModelIndex()
     ) -> int:  # pylint: disable=invalid-name
@@ -74,13 +135,13 @@ class Model(QtCore.QAbstractListModel):
             Show the artwork and the artist.
 
         """
-        return 2
+        return 3
 
     def data(  # pylint: disable=too-many-return-statements
         self,
         index: QtCore.QModelIndex,
         role: QtCore.Qt.ItemDataRole = QtCore.Qt.DisplayRole,
-    ) -> str | model_type.Artwork | None:
+    ) -> str | model_type.Artwork | met_get_type.DatetimeRange | None:
         """Get any relevant data from ``index`` and show ``role``.
 
         Args:
@@ -105,7 +166,18 @@ class Model(QtCore.QAbstractListModel):
 
             return None
 
-        # TODO: Add date column
+        if column == _DATE_COLUMN:
+            if role == QtCore.Qt.DisplayRole:
+                artwork = self._get_artwork(index)
+                start, end = artwork.get_datetime_range()
+
+                return f"{start} - {end}"
+
+            if role == self.data_role:
+                return self._get_artwork(index).get_datetime_range()
+
+            return None
+
         if column == _ARTIST_COLUMN:
             if role == QtCore.Qt.DisplayRole:
                 return self._get_artwork(index).get_artist()

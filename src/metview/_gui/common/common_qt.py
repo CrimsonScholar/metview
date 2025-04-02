@@ -13,3 +13,5 @@ def initialize_framed_label(widget: QtWidgets.QLabel) -> None:
     widget.setWordWrap(True)
     widget.setAlignment(QtCore.Qt.AlignCenter)
     widget.setFrameStyle(QtWidgets.QLabel.Box | QtWidgets.QLabel.Plain)
+    padding = 5
+    widget.setContentsMargins(padding, padding, padding, padding)

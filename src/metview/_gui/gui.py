@@ -9,15 +9,30 @@ import typing
 from Qt import QtCore, QtGui, QtWidgets
 
 from .._restapi import met_get
+from .common import common_qt, iterbot
 from .models import art_model, model_type
 from .utility_widgets import details_pane
-from .common import common_qt, iterbot
 
 
 class _ArtworkProxy(QtCore.QSortFilterProxyModel):
     """Sort and filter artwork based on the user's input."""
 
     # TODO: Finish this class later
+    def rowCount(
+        self, parent: QtCore.QModelIndex = QtCore.QModelIndex()
+    ) -> int:  # pylint: disable=invalid-name
+        """Get the rows to show in the GUI.
+
+        Args:
+            parent: The immediate parent to get the children for.
+
+        Returns:
+            The number of rows to show.
+
+        """
+        # TODO: Remove this min() later and redo this method
+        # return super().rowCount(parent)
+        return min(10, super().rowCount(parent))
 
 
 class _MetThread(QtCore.QThread):
@@ -34,7 +49,11 @@ class _MetThread(QtCore.QThread):
     def run(self) -> None:
         """Look for Met Museum IDs and update the parent thread when it is ready."""
         identifiers = met_get.get_all_identifiers()
-        self.identifiers_found.emit(identifiers)
+        # IMPORTANT: Lower identifiers tend to be empty or have missing contents so we
+        # will prioritize the later IDs. Both may get displayed in the end so this is
+        # just done to give the user a meaningful GUI result sooner.
+        #
+        self.identifiers_found.emit(sorted(identifiers, reverse=True))
 
 
 class Window(QtWidgets.QWidget):  # pylint: disable=too-few-public-methods
@@ -141,7 +160,7 @@ class Widget(
         # | art_b | artist: Some Person Jr. |
         # +-------+-------------------------+
         #
-        self._artwork_view = QtWidgets.QListView()
+        self._artwork_view = QtWidgets.QTableView()
         self._details_switcher = QtWidgets.QStackedWidget()
         self._details_no_selection_label = QtWidgets.QLabel(
             "This view will show art information. Please select some art on the left."
@@ -179,7 +198,10 @@ class Widget(
         self._artwork_splitter.setHandleWidth(25)  # Arbitrary, thick value
         self._details_switcher.setCurrentWidget(self._details_no_selection_label)
         self._filter_line.setPlaceholderText("Example: La Grenouillère")
+
         self._artwork_view.setSelectionMode(QtWidgets.QListView.ExtendedSelection)
+        self._artwork_view.horizontalHeader().setStretchLastSection(True)
+        self._artwork_view.verticalHeader().hide()
 
         self._filter_type.setToolTip("Press this to filter by artwork-type.")
         self._filter_line.setToolTip("Type the name of the Work of Art here.")
@@ -261,6 +283,7 @@ class Widget(
         proxy = _ArtworkProxy(parent=self)
         proxy.setSourceModel(model)
         self._artwork_view.setModel(proxy)
+        self._artwork_view.resizeColumnsToContents()
         selection_model = self._artwork_view.selectionModel()
 
         if not selection_model:

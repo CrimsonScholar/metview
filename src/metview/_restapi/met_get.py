@@ -1,16 +1,22 @@
 """A thin wrap around The Met Museum's (JSON-based) REST API."""
 
+import datetime
+import logging
 import os
 import typing
 from urllib import parse
 
 import requests
 
+from . import met_get_type
+
+
 _ARTIST_NAME_NOT_FOUND = "<No artist name>"
 _TITLE_NOT_FOUND = "<No title>"
-
 # Reference: https://datatracker.ietf.org/doc/html/rfc3986
 _BASE = os.getenv("MET_MUSEUM_API_DOMAIN", "https://collectionapi.metmuseum.org")
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ObjectDetails(typing.NamedTuple):
@@ -26,6 +32,7 @@ class ObjectDetails(typing.NamedTuple):
 
     artist: str
     classification: str | None
+    datetime_range: met_get_type.DatetimeRange
     thumbnail_url: str | None
     title: str
 
@@ -35,6 +42,8 @@ class _ObjectDetailsResponse(typing.TypedDict):
 
     artistDisplayName: str
     classification: str | None
+    objectBeginDate: int
+    objectEndDate: int
     primaryImageSmall: str | None
     title: str
 
@@ -44,6 +53,33 @@ class _ObjectsResponse(typing.TypedDict):
 
     limit: int
     objectIDs: list[int]
+
+
+def _get_datetime(year: int | None) -> datetime.datetime | None:
+    """Convert ``year`` to a datetime object.
+
+    Args:
+        year: Some B.C / A.D. year, if any. e.g. ``2025``.
+
+    Returns:
+        The converted datetime, if any.
+
+    """
+    if not year:
+        return None
+
+    month = 1
+    day = 1
+
+    try:
+        # NOTE: The Met Museum only tracks year so we just fill in
+        # a placeholder for the month and day.
+        #
+        return datetime.datetime(year, month, day)
+    except (ValueError, TypeError):
+        _LOGGER.error('Value "%s" could not be converted into a datetime.', year)
+
+        return None
 
 
 def get_all_identifiers() -> list[int]:
@@ -83,6 +119,10 @@ def get_identifier_data(identifier: str | int) -> ObjectDetails:
     return ObjectDetails(
         artist=data.get("artistDisplayName", _ARTIST_NAME_NOT_FOUND),
         classification=data.get("classification") or None,
+        datetime_range=(
+            _get_datetime(data.get("objectBeginDate")),
+            _get_datetime(data.get("objectEndDate")),
+        ),
         thumbnail_url=data["primaryImageSmall"] or None,
         title=data.get("title", _TITLE_NOT_FOUND),
     )
