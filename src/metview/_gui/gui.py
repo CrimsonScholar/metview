@@ -25,6 +25,54 @@ _LOGGER = logging.getLogger(__name__)
 class _ArtworkSortFilterProxy(QtCore.QSortFilterProxyModel):
     """Sort and filter artwork based on the user's input."""
 
+    def __init__(
+        self,
+        filter_functions: (
+            typing.Sequence[typing.Callable[[QtCore.QModelIndex], bool]] | None
+        ) = None,
+        parent: QtCore.QObject | None = None,
+    ):
+        """Store functions which may be used to filter by, later.
+
+        Args:
+            filter_functions:
+                Any functions used to filter by. If no functions are given, no
+                indices will be filtered. If a function is given and returns
+                True, the index is filtered. If the function returns False,
+                it is skipped. If no function returns True, the index is shown.
+            parent:
+                The Qt-based object to assign this instance underneath.
+
+        """
+        super().__init__(parent=parent)
+
+        self._filter_functions = filter_functions or []
+
+    def filterAcceptsRow(
+        self, source_row: int, source_parent: QtCore.QModelIndex
+    ) -> bool:
+        """Filter the row ``source_row`` in ``source_parent``, if needed.
+
+        Args:
+            source_row:
+                A 0-based index to check within ``source_parent`` for filtering.
+                This row is relative to ``source_parent``.
+            source_parent:
+                The anchor / reference point to search for an index row.
+
+        Returns:
+            bool: If False is returned, the row is hidden. If True, it is shown.
+
+        """
+        model = self.sourceModel()
+        index = model.index(source_row, qt_constant.ANY_COLUMN, source_parent)
+
+        for function in self._filter_functions:
+            if function(index):
+                return False
+
+        return True
+
     def lessThan(self, left: QtCore.QModelIndex, right: QtCore.QModelIndex) -> bool:
         """Check if ``left`` actually comes before ``right`` when both are sorted.
 
@@ -188,6 +236,7 @@ class _MaskedDataProxy(QtCore.QSortFilterProxyModel):
 
     """
 
+    data_role = art_model.Model.data_role
     needs_invalidate = QtCore.Signal()
 
     def __init__(self, parent: QtCore.QObject | None = None) -> None:
@@ -259,6 +308,9 @@ class _MaskedDataProxy(QtCore.QSortFilterProxyModel):
 
                 return ""
 
+            return super().data(index, role)  # type: ignore
+
+        if role == self.data_role:
             return super().data(index, role)  # type: ignore
 
         return super().data(index, role)  # type: ignore
@@ -449,7 +501,6 @@ class Widget(
         super().__init__(parent)
 
         main_layout = QtWidgets.QVBoxLayout()
-        self._model_debouncer = QtCore.QTimer(self)
         self.setLayout(main_layout)
 
         # NOTE: The top widgets
@@ -464,7 +515,9 @@ class Widget(
         # | art_b | artist: Some Person Jr. |
         # +-------+-------------------------+
         #
-        self._no_artwork_label = QtWidgets.QLabel("No artwork loaded yet. Please wait!")
+        self._no_artwork_label = QtWidgets.QLabel(
+            "No artwork loaded yet. Please wait! ~4 seconds wait time."
+        )
         self._artwork_view = QtWidgets.QTableView()
         self._details_switcher = QtWidgets.QStackedWidget()
         self._details_no_selection_label = QtWidgets.QLabel(
@@ -491,6 +544,9 @@ class Widget(
         top.addWidget(self._filter_details)
         main_layout.addLayout(top)
         main_layout.addWidget(self._artwork_switcher)
+
+        self._model_debouncer = QtCore.QTimer(self)
+        self._filterer_debouncer = QtCore.QTimer(self)
 
         self._initialize_default_settings()
 
@@ -538,6 +594,14 @@ class Widget(
         """Create any click / automatic functionality for this instance."""
         self._thread.started.connect(self._worker.run)
         self._worker.identifiers_found.connect(self._update_model)
+
+        # NOTE: Is a user is typing quickly, to keep the GUI snappy, we wait
+        # for a pause in their typing before refreshing
+        #
+        self._filterer_debouncer.setInterval(200)  # NOTE: Wait 0.2 sec between refresh
+        self._filterer_debouncer.setSingleShot(True)
+        self._filterer_debouncer.timeout.connect(self._invalidate_filter)
+        self._filter_line.textChanged.connect(self._filterer_debouncer.start)
 
     def _get_current_artworks(self) -> list[QtCore.QModelIndex]:
         """Get the user's current artwork selection, if any.
@@ -607,6 +671,14 @@ class Widget(
         else:
             self._artwork_switcher.setCurrentWidget(self._artwork_splitter)
 
+    def _invalidate_filter(self) -> None:
+        """Refresh the list of artwork based on the user's filter preferences."""
+        for proxy in iterbot.get_all_models_by_type(
+            self._artwork_view.model(),
+            _ArtworkSortFilterProxy,
+        ):
+            proxy.invalidateFilter()
+
     def _invalidate_proxies(self) -> None:
         """Force proxies to redraw their sorting and filters."""
         top_proxy = typing.cast(_ArtworkSortFilterProxy, self._artwork_view.model())
@@ -639,12 +711,33 @@ class Widget(
             RuntimeError: If ``model`` could not be applied as expected due to a bug.
 
         """
+
+        def _by_name(index: QtCore.QModelIndex) -> bool:
+            title_index = index.siblingAtColumn(art_model.Column.title)
+
+            if not title_index.isValid():
+                _LOGGER.warning('Index "%s" has no title index.', index)
+
+                return False  # Do not filter (show the ``index``)
+
+            text = self._filter_line.text().strip()
+
+            if not text:
+                # NOTE: The user is not filtering by-name
+
+                return False  # Do not filter (show the ``index``)
+
+            title = typing.cast(str, title_index.data(QtCore.Qt.DisplayRole))
+
+            # TODO: Consider fuzzymatching
+            return text.lower() not in title.lower()
+
         self._stop_masked_proxy_threads()
         deferred_proxy = _DeferredLoadProxy(parent=self)
         deferred_proxy.setSourceModel(model)
         mask_proxy = _MaskedDataProxy(parent=self)
         mask_proxy.setSourceModel(deferred_proxy)
-        sorter_proxy = _ArtworkSortFilterProxy(parent=self)
+        sorter_proxy = _ArtworkSortFilterProxy(filter_functions=[_by_name], parent=self)
         sorter_proxy.setSourceModel(mask_proxy)
 
         # NOTE: ``needs_invalidate`` can be spammy. So if ``needs_invalidate`` gets

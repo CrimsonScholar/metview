@@ -6,7 +6,6 @@ from Qt import QtCore
 from ..._restapi import met_get
 from ..models import art_model, model_type
 
-
 _LOGGER = logging.getLogger(__name__)
 
 

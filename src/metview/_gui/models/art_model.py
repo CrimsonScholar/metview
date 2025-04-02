@@ -174,7 +174,7 @@ class Model(QtCore.QAbstractTableModel):
             return self._get_artwork(index).get_tooltip()
 
         if column == Column.title:
-            if role == QtCore.Qt.DisplayRole:
+            if role in {QtCore.Qt.DisplayRole, self.data_role}:
                 return self._get_artwork(index).get_title()
 
             if role == QtCore.Qt.ToolTipRole:

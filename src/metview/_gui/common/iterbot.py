@@ -9,7 +9,6 @@ import typing
 
 from Qt import QtCore
 
-
 T = typing.TypeVar("T")
 
 
