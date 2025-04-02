@@ -4,16 +4,22 @@
 
 from __future__ import annotations
 
+import functools
+import logging
 import math
 import typing
 
 from Qt import QtCore, QtGui, QtWidgets
 
 from .._core import constant
-from .._restapi import met_get, met_get_type
-from .common import common_qt, iterbot
+from .._restapi import met_get_type
+from .common import common_qt, iterbot, qt_constant
 from .models import art_model, model_type
+from .utilities import threader
 from .utility_widgets import details_pane
+
+_DEFAULT_LOADING_MESSAGE = "Loading..."
+_LOGGER = logging.getLogger(__name__)
 
 
 class _ArtworkSortFilterProxy(QtCore.QSortFilterProxyModel):
@@ -61,14 +67,23 @@ class _ArtworkSortFilterProxy(QtCore.QSortFilterProxyModel):
 
 # NOTE: Ideally we'd use QIdentityProxyModel here but that isn't defined in Qt.py yet
 class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
-    """Extend a source model with "load more" capabilities."""
+    """Extend a source model with "load more" capabilities.
+
+    If the source model has thousands of entries, this class is designed to
+    gradually show them - without overwhelming the user.
+
+    Attributes:
+        ran_fetched: When more model rows are requested, this signal is emitted.
+
+    """
+
+    ran_fetched = QtCore.Signal(QtCore.QModelIndex, int, int)
 
     def __init__(self, parent: QtCore.QObject | None = None) -> None:
         """Initialize all of the row caches and keep track of ``parent`` if needed.
 
         Args:
-            parent:
-                An object which, if provided, holds a reference to this instance.
+            parent: An object which, if provided, holds a reference to this instance.
 
         """
         super().__init__(parent)
@@ -111,9 +126,13 @@ class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
 
         self.beginInsertRows(parent, current, current + to_fetch)
 
+        start = self._current_row_count[parent]
         self._current_row_count[parent] += self._fetch_limit
+        end = self._current_row_count[parent]
 
         self.endInsertRows()
+
+        self.ran_fetched.emit(parent, start, end)
 
     def invalidate(self) -> None:
         """Remove all cached row counts and start from scratch again."""
@@ -139,25 +158,200 @@ class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
         return self._current_row_count[parent]
 
 
-class _ArtQueryWorker(QtCore.QObject):
-    """Handle any high latency / slow functions here.
+# NOTE: Ideally we'd use QIdentityProxyModel here but that isn't defined in Qt.py yet
+class _MaskedDataProxy(QtCore.QSortFilterProxyModel):
+    """A proxy that masks and batches requests to The Met's REST API.
+
+    Qt does not allow us developers to decide when and how often its MVC model data is
+    queried. This is a problem for us because our row data requires some high-latency
+    REST API calls, potentially dozens or thousands. By default, Qt does these queries
+    on the main thread, which means bad interactivity in our GUIs. This class solves the
+    problem like this:
+
+    1. If Qt requests data that we know will be slow, show a placeholder instead
+    2. Do the query in another thread
+    3. Once the data is ready, report which indices are "ready to show its data"
+    4. (outside of this class), update the views and widgets to show the data
+
+    Once #4 happens, :meth:`_MaskedDataProxy.data` gets called again and we show the
+    real data instead of the placeholder.
+
+    The end result: The user gets uninterrupted UX and we can load any high-latency data
+    as it becomes available.
 
     Attributes:
-        identifiers_found:
-            After we query the Met Museum for all Artworks, the found IDs are emitted.
+        needs_invalidate:
+            If any internal data has changed in a way that could make views / proxies
+            out-of-date, this signal is emitted. Important: when this signal emits, it's
+            a good idea to immediately call ``invalidateFilter`` or ``invalidate`` on
+            your proxy models, if any.
 
     """
 
-    identifiers_found = QtCore.Signal(list)
+    needs_invalidate = QtCore.Signal()
 
-    def run(self) -> None:
-        """Look for Met Museum IDs and update the parent thread when it is ready."""
-        identifiers = met_get.get_all_identifiers()
-        # IMPORTANT: Lower identifiers tend to be empty or have missing contents so we
-        # will prioritize the later IDs. Both may get displayed in the end so this is
-        # just done to give the user a meaningful GUI result sooner.
-        #
-        self.identifiers_found.emit(sorted(identifiers, reverse=True))
+    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+        """Initialize all of the row caches and keep track of ``parent`` if needed.
+
+        Args:
+            parent: An object which, if provided, holds a reference to this instance.
+
+        """
+        super().__init__(parent)
+
+        self._threads: list[
+            tuple[QtCore.QThread, threader.QueryArtworkDetailsWorker]
+        ] = []
+
+    def _is_details_populated(self, index: QtCore.QModelIndex) -> bool:
+        """Check if ``index`` has been partially or fully loaded with data.
+
+        Args:
+            index: Some Qt location (proxy or source) to check.
+
+        Returns:
+            If loaded, return ``True``.
+
+        """
+        artwork = typing.cast(
+            model_type.Artwork,
+            index.data(art_model.Model.artwork_role),
+        )
+
+        return artwork.is_details_populated()
+
+    def data(  # pylint: disable=too-many-return-statements
+        self,
+        index: QtCore.QModelIndex,
+        role: QtCore.Qt.ItemDataRole = QtCore.Qt.DisplayRole,
+    ) -> str | model_type.Artwork | met_get_type.DatetimeRange | QtGui.QIcon | None:
+        """Get any relevant data from ``index`` and show ``role``.
+
+        Args:
+            index: Some Qt source data location (row & column) to query from.
+            role: The representation of ``index`` to return.
+
+        Returns:
+            The found data, if any.
+
+        """
+        if role == QtCore.Qt.DecorationRole:
+            column = index.column()
+
+            if column == 0:
+                if not self._is_details_populated(index):
+                    return QtGui.QIcon(f"{constant.QT_PREFIX}:loading.svg")
+
+            return None
+
+        if role == QtCore.Qt.ToolTipRole:
+            if not self._is_details_populated(index):
+                return _DEFAULT_LOADING_MESSAGE
+
+            return super().data(index, role)  # type: ignore
+
+        if role == QtCore.Qt.DisplayRole:
+            if not self._is_details_populated(index):
+                column = index.column()
+
+                if column == 0:
+                    return _DEFAULT_LOADING_MESSAGE
+
+                return ""
+
+            return super().data(index, role)  # type: ignore
+
+        return super().data(index, role)  # type: ignore
+
+    def populate_rows(self, parent: QtCore.QModelIndex, start: int, end: int) -> None:
+        """Request data for all indices under ``parent``, from ``start`` to ``end``.
+
+        We use a series of threads to query The Met's REST API, here. Each thread is
+        response for a batch of Qt indices (to keep the overall thread size down).
+
+        Important:
+            This method is **inclusive**, all indices including ``start`` and ``end``
+            will be populated.
+
+        Args:
+            parent: Some Qt location which has child indices to populate.
+            start: The first index row to populate.
+            end: The last index row to populate.
+
+        """
+
+        def _update_all(
+            start: QtCore.QPersistentModelIndex,
+            end: QtCore.QPersistentModelIndex,
+            thread: QtCore.QThread,
+        ) -> None:
+            if not start.isValid() or not end.isValid():
+                # NOTE: This should be super rare, if no impossible to happen.
+                _LOGGER.warning('We cannot update. The "%s / %s" indices are invalid.')
+
+                return
+
+            self.dataChanged.emit(start, end)
+            thread.quit()
+            self.needs_invalidate.emit()
+
+        def _get_all_qt_indices(
+            parent: QtCore.QModelIndex,
+            start: int,
+            end: int,
+        ) -> list[QtCore.QModelIndex]:
+            all_indices: list[QtCore.QModelIndex] = []
+            source_model = iterbot.get_lowest_source(self)
+
+            for row_index in range(start, end):
+                # NOTE: We only need to update one column from each row because that's
+                # how the underlying data is laid out
+                #
+                proxy_index = self.index(row_index, qt_constant.ANY_COLUMN, parent)
+                source_index = iterbot.map_to_source_recursively(
+                    proxy_index, source_model
+                )
+                all_indices.append(source_index)
+
+            return all_indices
+
+        def _split_qt_indices_into_chunks(
+            qt_indices: typing.Sequence[QtCore.QModelIndex],
+        ) -> list[list[QtCore.QModelIndex]]:
+            chunk = 10  # NOTE: An abitrary value to help minimize the number of threads
+            rows = list(range(start, end))
+            groups = [rows[index::chunk] for index in range(chunk)]
+            output: list[list[QtCore.QModelIndex]] = []
+
+            for subgroup in groups:
+                output.append([qt_indices[index] for index in subgroup])
+
+            return output
+
+        for qt_indices in _split_qt_indices_into_chunks(
+            _get_all_qt_indices(parent, start, end)
+        ):
+            worker = threader.QueryArtworkDetailsWorker(qt_indices)
+            thread = QtCore.QThread(parent=self)
+            thread.started.connect(worker.run)
+            worker.finished.connect(
+                functools.partial(
+                    _update_all,
+                    QtCore.QPersistentModelIndex(qt_indices[0]),
+                    QtCore.QPersistentModelIndex(qt_indices[-1]),
+                    thread,
+                )
+            )
+            worker.moveToThread(thread)
+            self._threads.append((thread, worker))
+            # TODO: Consider limiting to 80 requests a second
+            thread.start()
+
+    def stop(self) -> None:
+        """Force any ongoing work to terminate."""
+        for thread, worker in self._threads:
+            worker.stop()
+            thread.terminate()
 
 
 class Window(QtWidgets.QWidget):  # pylint: disable=too-few-public-methods
@@ -207,7 +401,7 @@ class Window(QtWidgets.QWidget):  # pylint: disable=too-few-public-methods
         self._close_button.setToolTip("Press this to close this GUI window.")
         self._close_button.clicked.connect(self.close)
 
-        # NOTE: A size that "looks good"
+        # NOTE: An arbitrary size that "looks good"
         height = 550
         golden_ratio = 1.618
         self.resize(int(math.floor(height * golden_ratio)), height)
@@ -286,7 +480,7 @@ class Widget(
         self._artwork_splitter.addWidget(self._details_switcher)
 
         # TODO: Add a switcher for when we're querying artwork data
-        self._worker = _ArtQueryWorker()
+        self._worker = threader.ArtQueryWorker()
         self._thread = QtCore.QThread(parent=self)
         self._worker.moveToThread(self._thread)
 
@@ -325,6 +519,9 @@ class Widget(
         self._artwork_view.setSelectionBehavior(QtWidgets.QListView.SelectRows)
         self._artwork_view.setSelectionMode(QtWidgets.QListView.ExtendedSelection)
         self._artwork_view.verticalHeader().hide()
+
+        self._model_debouncer.setInterval(100)  # NOTE: Wait 0.1 sec between refreshes
+        self._model_debouncer.setSingleShot(True)
 
         self._filter_type.setToolTip("Press this to filter by artwork-type.")
         self._filter_line.setToolTip("Type the name of the Work of Art here.")
@@ -382,6 +579,16 @@ class Widget(
 
         return [iterbot.map_to_source_recursively(index, source) for index in output]
 
+    def _stop_masked_proxy_threads(self) -> None:
+        """Stop all threads from all :class:`_MaskedDataProxy` models."""
+        top_proxy = self._artwork_view.model()
+
+        if not top_proxy:
+            return
+
+        for proxy in iterbot.get_all_models_by_type(top_proxy, _MaskedDataProxy):
+            proxy.stop()
+
     def _update_details_pane(self) -> None:
         """Show or hide the details pane if the user has selected some artwork."""
         if artworks := self._get_current_artworks():
@@ -399,6 +606,15 @@ class Widget(
         else:
             self._artwork_switcher.setCurrentWidget(self._artwork_splitter)
 
+    def _invalidate_proxies(self) -> None:
+        """Force proxies to redraw their sorting and filters."""
+        top_proxy = typing.cast(_ArtworkSortFilterProxy, self._artwork_view.model())
+        lowest_proxy = typing.cast(
+            QtCore.QSortFilterProxyModel,
+            iterbot.get_lowest_proxy(top_proxy),
+        )
+        lowest_proxy.invalidate()
+
     def _update_model(self, identifiers: list[int]) -> None:
         """Clear and refresh our internal model with ``identifiers``.
 
@@ -409,11 +625,7 @@ class Widget(
         top_proxy = typing.cast(_ArtworkSortFilterProxy, self._artwork_view.model())
         model = _get_artwork_source_model(top_proxy)
         model.update_artwork_identifiers(identifiers)
-        lowest_proxy = typing.cast(
-            QtCore.QSortFilterProxyModel,
-            iterbot.get_lowest_proxy(top_proxy),
-        )
-        lowest_proxy.invalidate()
+        self._invalidate_proxies()
         self._update_main_switcher()
 
     def set_model(self, model: art_model.Model) -> None:
@@ -426,10 +638,14 @@ class Widget(
             RuntimeError: If ``model`` could not be applied as expected due to a bug.
 
         """
+        self._stop_masked_proxy_threads()
         deferred_proxy = _DeferredLoadProxy(parent=self)
         deferred_proxy.setSourceModel(model)
+        mask_proxy = _MaskedDataProxy(parent=self)
+        mask_proxy.setSourceModel(deferred_proxy)
         sorter_proxy = _ArtworkSortFilterProxy(parent=self)
-        sorter_proxy.setSourceModel(deferred_proxy)
+        sorter_proxy.setSourceModel(mask_proxy)
+
         self._artwork_view.setModel(sorter_proxy)
         self._artwork_view.setSortingEnabled(True)
         self._artwork_view.sortByColumn(
@@ -451,9 +667,8 @@ class Widget(
             event: The Qt-provided event that handles widget closing.
 
         """
-        if self._thread.isRunning():
-            self._thread.quit()
-            self._thread.wait()
+        self._stop_masked_proxy_threads()
+        self._thread.terminate()
 
         super().closeEvent(event)
 
