@@ -22,14 +22,20 @@ class Artwork:
         self._identifier = identifier
         self._details: met_get.ObjectDetails | None = None
 
+    def is_details_populated(self) -> bool:
+        """Check if this instance has most of its label data yet."""
+        return bool(self._details)
+
     def get_tooltip(self) -> str:
         """Show a simple breakdown of this instance."""
         return textwrap.dedent(
             f"""\
             Title: {self.get_title() or "<No title found>"}
             Artist: {self.get_artist() or "<No artist name found>"}
+            Date: {self.get_datetime_range()!s}
             Classification: {self.get_classification() or "<No classification found>"}
-            Has Thumbnail: {bool(self.get_thumbnail_data())}"""
+            Has Thumbnail: {bool(self.get_thumbnail_data())}
+            ID: {self._identifier!r}"""
         )
 
     # TODO: Consider refactoring this ``if precompute ... return foo`` pattern
