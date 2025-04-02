@@ -55,6 +55,7 @@ class Datetime:
         return self._year < other._year
 
     def __str__(self) -> str:
+        """Get the raw date of this instance."""
         return str(self._year)
 
 

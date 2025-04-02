@@ -133,6 +133,7 @@ def _show_gui(namespace: _ShowGuiArguments) -> None:
         QtWidgets.QApplication.instance() or QtWidgets.QApplication([]),  # type: ignore
     )
     window = gui.Window(search_term=namespace.search_term)
+    application.setStyle("macOS")
     window.show()
     application.exec_()
 
