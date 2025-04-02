@@ -449,6 +449,7 @@ class Widget(
         super().__init__(parent)
 
         main_layout = QtWidgets.QVBoxLayout()
+        self._model_debouncer = QtCore.QTimer(self)
         self.setLayout(main_layout)
 
         # NOTE: The top widgets
@@ -645,6 +646,16 @@ class Widget(
         mask_proxy.setSourceModel(deferred_proxy)
         sorter_proxy = _ArtworkSortFilterProxy(parent=self)
         sorter_proxy.setSourceModel(mask_proxy)
+
+        # NOTE: ``needs_invalidate`` can be spammy. So if ``needs_invalidate`` gets
+        # emitted 10 times in < 0.1 seconds, we will call ``self._invalidate_proxies``
+        # only once. This makes the GUI much more stable and snappy.
+        #
+        self._model_debouncer.setInterval(100)  # NOTE: Wait 0.1 sec between refreshes
+        self._model_debouncer.setSingleShot(True)
+        self._model_debouncer.timeout.connect(self._invalidate_proxies)
+        mask_proxy.needs_invalidate.connect(self._model_debouncer.start)
+        deferred_proxy.ran_fetched.connect(mask_proxy.populate_rows)
 
         self._artwork_view.setModel(sorter_proxy)
         self._artwork_view.setSortingEnabled(True)
