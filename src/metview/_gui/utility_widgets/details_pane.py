@@ -1,11 +1,15 @@
 """The right-hand side view of :ref:`metview`. It shows basic artwork + artist data."""
 
+import logging
 import typing
 
 from Qt import QtCore, QtGui, QtWidgets
 
 from ..common import common_qt
 from ..models import art_model, model_type
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class _DetailsPage(QtWidgets.QWidget):
@@ -94,19 +98,27 @@ class _DetailsPage(QtWidgets.QWidget):
         self._datetime_line.setText(_get_display(index, art_model.Column.datetime))
 
         thumbnail_index = index.siblingAtColumn(art_model.Column.thumbnail)
+        thumbnail: str | None = None
 
         if not thumbnail_index.isValid():
-            raise RuntimeError(f'Index "{index}" has no thumbnail.')
+            _LOGGER.warning('Index "%s" has no thumbnail index.', index)
+
+            self._thumbnail_switcher.setCurrentWidget(self._no_thumbnail_label)
+
+            return
 
         thumbnail = typing.cast(
             str | None,
             thumbnail_index.data(art_model.Model.data_role),
         )
 
-        if thumbnail:
-            # TODO: Make sure this code works later
-            self._thumbnail_label.setPixmap(QtGui.QPixmap(thumbnail))
+        if not thumbnail:
+            self._thumbnail_switcher.setCurrentWidget(self._no_thumbnail_label)
 
+            return
+
+        # TODO: Make sure this code works later
+        self._thumbnail_label.setPixmap(QtGui.QPixmap(thumbnail))
         self._thumbnail_switcher.setCurrentWidget(self._thumbnail_label)
 
 

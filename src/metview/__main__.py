@@ -17,13 +17,13 @@ def _initialize_logging() -> None:
     """Add the logging print handlers."""
     logger = logging.getLogger(_ROOT_LOGGER_NAME)
     handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.INFO)
+    handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.ERROR)
 
 
 _initialize_logging()

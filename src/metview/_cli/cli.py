@@ -113,7 +113,7 @@ def _set_logger_if_needed(scale: int) -> None:
 
     """
     level_difference = logging.INFO - logging.DEBUG
-    initial_level = logging.ERROR
+    initial_level = logging.WARNING
     computed_level = initial_level - max(0, level_difference * scale)
     logger = logging.getLogger(constant.ROOT_LOGGER_NAME)
     logger.setLevel(computed_level)
