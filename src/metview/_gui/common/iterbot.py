@@ -10,6 +10,39 @@ import typing
 from Qt import QtCore
 
 
+T = typing.TypeVar("T")
+
+
+def get_all_models_by_type(
+    model: QtCore.QAbstractItemModel,
+    type_: typing.Type[T],
+) -> list[T]:
+    """Find every Qt proxy / model starting from ``model`` of ``type_`` class type.
+
+    Important:
+        This method is **inclusive**, meaning ``model`` may be included in the return.
+
+    Args:
+        model: Some Qt proxy or source to begin searching within.
+        type_: The Qt class to look within.
+
+    Returns:
+        All found matches, if any.
+
+    """
+    output: list[T] = []
+
+    while hasattr(model, "sourceModel"):
+        if isinstance(model, type_):
+            output.append(model)
+        model = model.sourceModel()
+
+    if model and isinstance(model, type_):
+        output.append(model)
+
+    return output
+
+
 def get_lowest_proxy(
     model: QtCore.QAbstractProxyModel,
 ) -> QtCore.QAbstractProxyModel:
