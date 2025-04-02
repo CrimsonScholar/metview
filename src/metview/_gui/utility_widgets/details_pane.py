@@ -51,7 +51,14 @@ class _DetailsPage(QtWidgets.QWidget):
         main_layout.addWidget(self._artist_line, 1, 1)
         main_layout.addWidget(self._thumbnail_switcher, 0, 2, 2, 2)
         main_layout.addWidget(self._datetime_label, 2, 0)
-        main_layout.addWidget(self._datetime_line, 2, 1)
+        main_layout.addWidget(self._datetime_line, 2, 1, 1, -1)
+        main_layout.addItem(
+            QtWidgets.QSpacerItem(1, 1, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding),
+            main_layout.count(),
+            1,
+            1,
+            -1,
+        )
 
         self._initialize_default_settings()
         self.set_current_artwork(index)

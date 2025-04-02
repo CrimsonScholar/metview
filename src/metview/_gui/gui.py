@@ -205,7 +205,9 @@ class Window(QtWidgets.QWidget):  # pylint: disable=too-few-public-methods
         self._close_button.setToolTip("Press this to close this GUI window.")
         self._close_button.clicked.connect(self.close)
 
-        self.resize(650, 400)  # NOTE: A default size that "looks good"
+        height = 550
+        golden_ratio = 1.618
+        self.resize(height * golden_ratio, height)  # NOTE: A size that "looks good"
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """Force any ongoing work to terminate before closing.
