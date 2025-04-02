@@ -186,6 +186,9 @@ class Model(QtCore.QAbstractTableModel):
                 artwork = self._get_artwork(index)
                 start, end = artwork.get_datetime_range()
 
+                if start == end:
+                    return str(start)
+
                 return f"{start} - {end}"
 
             if role == QtCore.Qt.ToolTipRole:
