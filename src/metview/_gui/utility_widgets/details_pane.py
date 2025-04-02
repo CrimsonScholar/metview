@@ -37,6 +37,8 @@ class _DetailsPage(QtWidgets.QWidget):
         self._artist_line = QtWidgets.QLineEdit()
         self._datetime_label = QtWidgets.QLabel("Datetime:")
         self._datetime_line = QtWidgets.QLineEdit()
+        self._classifaction_label = QtWidgets.QLabel("Classification:")
+        self._classifaction_line = QtWidgets.QLineEdit()
         self._no_thumbnail_label = QtWidgets.QLabel("No thumbnail")
         self._thumbnail_label = QtWidgets.QLabel()
         self._thumbnail_switcher = QtWidgets.QStackedWidget()
@@ -51,12 +53,14 @@ class _DetailsPage(QtWidgets.QWidget):
         main_layout.addWidget(self._thumbnail_switcher, 0, 2, 2, 2)
         main_layout.addWidget(self._datetime_label, 2, 0)
         main_layout.addWidget(self._datetime_line, 2, 1, 1, -1)
+        main_layout.addWidget(self._classifaction_label, 3, 0)
+        main_layout.addWidget(self._classifaction_line, 3, 1, 1, -1)
         main_layout.addItem(
             QtWidgets.QSpacerItem(
                 1, 1, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
             ),
             main_layout.count(),
-            1,
+            4,
             1,
             -1,
         )
@@ -69,6 +73,8 @@ class _DetailsPage(QtWidgets.QWidget):
         self._artwork_line.setReadOnly(True)
         self._artist_line.setReadOnly(True)
         self._datetime_line.setReadOnly(True)
+        self._classifaction_line.setReadOnly(True)
+
         common_qt.initialize_framed_label(self._no_thumbnail_label)
 
         tip = "The title of the artwork."
@@ -79,7 +85,10 @@ class _DetailsPage(QtWidgets.QWidget):
         self._artist_line.setToolTip(tip)
         tip = "The year / period that the artwork was thought to be made during."
         self._datetime_label.setToolTip(tip)
-        self._datetime_label.setToolTip(tip)
+        self._datetime_line.setToolTip(tip)
+        tip = "The way that the artwork was presented / created (e.g. Etching, Print)"
+        self._classifaction_label.setToolTip(tip)
+        self._classifaction_line.setToolTip(tip)
         self._no_thumbnail_label.setToolTip("No artwork image preview could be found.")
         self._thumbnail_label.setToolTip("Here is what the artwork looks like.")
 
@@ -88,6 +97,7 @@ class _DetailsPage(QtWidgets.QWidget):
         self._artwork_line.clear()
         self._artist_line.clear()
         self._datetime_line.clear()
+        self._classifaction_line.clear()
         self.clear_thumbnail()
 
     def clear_thumbnail(self) -> None:
@@ -104,6 +114,9 @@ class _DetailsPage(QtWidgets.QWidget):
         self._artwork_line.setText(_get_display(index, art_model.Column.title))
         self._artist_line.setText(_get_display(index, art_model.Column.artist))
         self._datetime_line.setText(_get_display(index, art_model.Column.datetime))
+        self._classifaction_line.setText(
+            _get_display(index, art_model.Column.classification)
+        )
 
         thumbnail_index = index.siblingAtColumn(art_model.Column.thumbnail)
         thumbnail: str | None = None

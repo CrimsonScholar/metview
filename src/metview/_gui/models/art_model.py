@@ -27,6 +27,7 @@ class Column:
     # ToolTipRole thumbnail information when it is needed.
     #
     thumbnail = 1000001
+    classification = 1000002
 
 
 class Model(QtCore.QAbstractTableModel):
@@ -214,6 +215,18 @@ class Model(QtCore.QAbstractTableModel):
 
             if role == QtCore.Qt.ToolTipRole:
                 return "The raw thumbnail bytes to load into an image. Be careful!"
+
+            return None
+
+        if column == Column.classification:
+            if role == QtCore.Qt.DisplayRole:
+                return (
+                    self._get_artwork(index).get_classification()
+                    or "<No classification>"
+                )
+
+            if role == QtCore.Qt.ToolTipRole:
+                return "The way that the artwork is presented (e.g. Etching, Print)"
 
             return None
 
