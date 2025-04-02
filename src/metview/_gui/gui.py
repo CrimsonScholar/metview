@@ -266,15 +266,19 @@ class Widget(
         # | art_b | artist: Some Person Jr. |
         # +-------+-------------------------+
         #
+        self._no_artwork_label = QtWidgets.QLabel("No artwork loaded yet. Please wait!")
         self._artwork_view = QtWidgets.QTableView()
         self._details_switcher = QtWidgets.QStackedWidget()
         self._details_no_selection_label = QtWidgets.QLabel(
             "This view will show art information. Please select some art on the left."
         )
+        self._artwork_switcher = QtWidgets.QStackedWidget()
         self._artwork_splitter = QtWidgets.QSplitter()
         self._details_pane = details_pane.DetailsPane()
         self._details_switcher.addWidget(self._details_no_selection_label)
         self._details_switcher.addWidget(self._details_pane)
+        self._artwork_switcher.addWidget(self._no_artwork_label)
+        self._artwork_switcher.addWidget(self._artwork_splitter)
         self._artwork_splitter.addWidget(self._artwork_view)
         self._artwork_splitter.addWidget(self._details_switcher)
 
@@ -288,7 +292,7 @@ class Widget(
         top.addWidget(self._filter_line)
         top.addWidget(self._filter_details)
         main_layout.addLayout(top)
-        main_layout.addWidget(self._artwork_splitter)
+        main_layout.addWidget(self._artwork_switcher)
 
         self._initialize_default_settings()
 
@@ -298,15 +302,22 @@ class Widget(
         self.set_model(model or art_model.Model([]))
 
         self._initialize_interactive_settings()
+        self._update_main_switcher()
         self._thread.start()
 
     def _initialize_default_settings(self) -> None:
         """Set the default appearance of child widgets."""
+        common_qt.initialize_framed_label(self._no_artwork_label)
         common_qt.initialize_framed_label(self._details_no_selection_label)
         self._artwork_splitter.setHandleWidth(25)  # Arbitrary, thick value
         self._details_switcher.setCurrentWidget(self._details_no_selection_label)
         self._filter_line.setPlaceholderText("Example: La Grenouillère")
 
+        self._no_artwork_label.setToolTip(
+            "No artwork has been loaded yet. Once there is artwork to see, "
+            "this widget will be automatically hidden "
+            "and you will see a table with the data.",
+        )
         self._artwork_view.horizontalHeader().setStretchLastSection(True)
         self._artwork_view.setSelectionBehavior(QtWidgets.QListView.SelectRows)
         self._artwork_view.setSelectionMode(QtWidgets.QListView.ExtendedSelection)
@@ -376,6 +387,15 @@ class Widget(
         else:
             self._details_switcher.setCurrentWidget(self._details_no_selection_label)
 
+    def _update_main_switcher(self) -> None:
+        """Show the artwork table if there is any data to show."""
+        source = iterbot.get_lowest_source(self._artwork_view.model())
+
+        if not source.rowCount(QtCore.QModelIndex()):
+            self._artwork_switcher.setCurrentWidget(self._no_artwork_label)
+        else:
+            self._artwork_switcher.setCurrentWidget(self._artwork_splitter)
+
     def _update_model(self, identifiers: list[int]) -> None:
         """Clear and refresh our internal model with ``identifiers``.
 
@@ -391,6 +411,7 @@ class Widget(
             iterbot.get_lowest_proxy(top_proxy),
         )
         lowest_proxy.invalidate()
+        self._update_main_switcher()
 
     def set_model(self, model: art_model.Model) -> None:
         """Store and display source ``model``.
