@@ -62,7 +62,9 @@ class Model(QtCore.QAbstractListModel):
 
         return node
 
-    def columnCount(self, _: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:  # pylint: disable=invalid-name
+    def columnCount(
+        self, _: QtCore.QModelIndex = QtCore.QModelIndex()
+    ) -> int:  # pylint: disable=invalid-name
         """Get the number of columns to show in a view by default.
 
         Args:
@@ -113,7 +115,9 @@ class Model(QtCore.QAbstractListModel):
         return None
 
     # TODO: (performance) - Make this faster later (using fetchMore and caching)
-    def rowCount(self, _: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:  # pylint: disable=invalid-name
+    def rowCount(
+        self, _: QtCore.QModelIndex = QtCore.QModelIndex()
+    ) -> int:  # pylint: disable=invalid-name
         """Get the rows to show in the GUI.
 
         Args:

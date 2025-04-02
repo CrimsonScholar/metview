@@ -2,7 +2,6 @@
 
 import os
 import typing
-
 from urllib import parse
 
 import requests

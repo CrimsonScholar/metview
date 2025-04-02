@@ -4,8 +4,8 @@ import typing
 
 from Qt import QtGui, QtWidgets
 
-from ..models import model_type
 from ..common import common_qt
+from ..models import model_type
 
 
 class _DetailsPage(QtWidgets.QWidget):

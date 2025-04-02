@@ -107,7 +107,10 @@ class Widget(
     """
 
     def __init__(
-        self, search_term: str = "", model: art_model.Model | None=None, parent: QtWidgets.QWidget | None = None
+        self,
+        search_term: str = "",
+        model: art_model.Model | None = None,
+        parent: QtWidgets.QWidget | None = None,
     ) -> None:
         """Initialize the child widgets for this instance.
 
@@ -176,6 +179,7 @@ class Widget(
         self._artwork_splitter.setHandleWidth(25)  # Arbitrary, thick value
         self._details_switcher.setCurrentWidget(self._details_no_selection_label)
         self._filter_line.setPlaceholderText("Example: La Grenouillère")
+        self._artwork_view.setSelectionMode(QtWidgets.QListView.ExtendedSelection)
 
         self._filter_type.setToolTip("Press this to filter by artwork-type.")
         self._filter_line.setToolTip("Type the name of the Work of Art here.")
@@ -208,18 +212,11 @@ class Widget(
                 "Artwork view has no selection model. This is a bug, please fix!"
             )
 
-        indices = model.selectedIndexes()
-        # TODO: Filter by-row
-
-        if len(indices) > 2:
-            raise RuntimeError(
-                'We can only return one artwork at a time. Got "{indices}" indices.'
-            )
-
         invalids: list[typing.Any] = []
         output: list[model_type.Artwork] = []
+        selected = model.selectedIndexes()
 
-        for index in indices:
+        for index in iterbot.iter_unique_rows(selected):
             data = index.data(art_model.Model.artwork_role)
 
             if not isinstance(data, model_type.Artwork):
