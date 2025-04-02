@@ -1,6 +1,5 @@
 """Internal data to define Qt + MVC types."""
 
-import datetime
 import functools
 import textwrap
 import typing

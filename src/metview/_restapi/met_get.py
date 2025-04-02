@@ -1,6 +1,5 @@
 """A thin wrap around The Met Museum's (JSON-based) REST API."""
 
-import datetime
 import logging
 import os
 import typing
@@ -55,7 +54,7 @@ class _ObjectsResponse(typing.TypedDict):
     objectIDs: list[int]
 
 
-def _get_datetime(year: int | None) -> datetime.datetime | None:
+def _get_datetime(year: int | None) -> met_get_type.Datetime | None:
     """Convert ``year`` to a datetime object.
 
     Args:
@@ -68,14 +67,11 @@ def _get_datetime(year: int | None) -> datetime.datetime | None:
     if not year:
         return None
 
-    month = 1
-    day = 1
-
     try:
         # NOTE: The Met Museum only tracks year so we just fill in
         # a placeholder for the month and day.
         #
-        return datetime.datetime(year, month, day)
+        return met_get_type.Datetime(year)
     except (ValueError, TypeError):
         _LOGGER.error('Value "%s" could not be converted into a datetime.', year)
 
