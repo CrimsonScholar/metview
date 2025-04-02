@@ -8,7 +8,6 @@ from Qt import QtCore, QtGui, QtWidgets
 from ..common import common_qt
 from ..models import art_model, model_type
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -53,7 +52,9 @@ class _DetailsPage(QtWidgets.QWidget):
         main_layout.addWidget(self._datetime_label, 2, 0)
         main_layout.addWidget(self._datetime_line, 2, 1, 1, -1)
         main_layout.addItem(
-            QtWidgets.QSpacerItem(1, 1, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding),
+            QtWidgets.QSpacerItem(
+                1, 1, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
+            ),
             main_layout.count(),
             1,
             1,

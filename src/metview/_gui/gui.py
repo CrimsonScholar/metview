@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import math
 import typing
 
 from Qt import QtCore, QtGui, QtWidgets
@@ -205,9 +206,10 @@ class Window(QtWidgets.QWidget):  # pylint: disable=too-few-public-methods
         self._close_button.setToolTip("Press this to close this GUI window.")
         self._close_button.clicked.connect(self.close)
 
+        # NOTE: A size that "looks good"
         height = 550
         golden_ratio = 1.618
-        self.resize(height * golden_ratio, height)  # NOTE: A size that "looks good"
+        self.resize(int(math.floor(height * golden_ratio)), height)
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """Force any ongoing work to terminate before closing.
