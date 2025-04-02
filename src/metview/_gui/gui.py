@@ -8,34 +8,136 @@ import typing
 
 from Qt import QtCore, QtGui, QtWidgets
 
-from .._restapi import met_get
+from .._restapi import met_get, met_get_type
 from .common import common_qt, iterbot
 from .models import art_model, model_type
 from .utility_widgets import details_pane
 
 
-class _ArtworkProxy(QtCore.QSortFilterProxyModel):
+class _ArtworkSortFilterProxy(QtCore.QSortFilterProxyModel):
     """Sort and filter artwork based on the user's input."""
 
-    # TODO: Finish this class later
-    def rowCount(
-        self, parent: QtCore.QModelIndex = QtCore.QModelIndex()
-    ) -> int:  # pylint: disable=invalid-name
-        """Get the rows to show in the GUI.
+    def lessThan(self, left: QtCore.QModelIndex, right: QtCore.QModelIndex) -> bool:
+        """Check if ``left`` actually comes before ``right`` when both are sorted.
 
         Args:
-            parent: The immediate parent to get the children for.
+            left: Some Qt locatino to check.
+            right: Another Qt locatino to check.
 
         Returns:
-            The number of rows to show.
+            If ``left`` must come before ``right``, return ``True``. If it doesn't
+            matter or ``left`` goes after ``right``, return ``False``.
 
         """
-        # TODO: Remove this min() later and redo this method
-        # return super().rowCount(parent)
-        return min(10, super().rowCount(parent))
+
+        def _get_default_text(index: QtCore.QModelIndex) -> str:
+            return index.data(QtCore.Qt.DisplayRole) or ""
+
+        column = left.column()
+
+        if column == art_model.Column.datetime:
+            left_datetime = typing.cast(
+                met_get_type.Datetime | None,
+                left.data(art_model.Model.data_role),
+            )
+
+            if not left_datetime:
+                return False
+
+            right_datetime = typing.cast(
+                met_get_type.Datetime | None,
+                right.data(art_model.Model.data_role),
+            )
+
+            if not right_datetime:
+                return True
+
+            return left_datetime < right_datetime
+
+        return _get_default_text(left) < _get_default_text(right)
 
 
-class _MetThread(QtCore.QThread):
+# NOTE: Ideally we'd use QIdentityProxyModel here but that isn't defined in Qt.py yet
+class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
+    """Extend a source model with "load more" capabilities."""
+
+    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+        """Initialize all of the row caches and keep track of ``parent`` if needed.
+
+        Args:
+            parent:
+                An object which, if provided, holds a reference to this instance.
+
+        """
+        super().__init__(parent)
+
+        # XXX: The project brief asks to initially load a maximum of 80 so that
+        # will be our limit too.
+        #
+        self._fetch_limit = 80
+
+        self._current_row_count: dict[QtCore.QModelIndex, int] = {}
+        self._real_row_count: dict[QtCore.QModelIndex, int] = {}
+
+    def canFetchMore(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> bool:
+        """Check if we have seen all of the rows from ``parent`` yet, or not.
+
+        Args:
+            parent: Some Qt source location to check rows for.
+
+        Returns:
+            If there are no more rows to see / populate, return ``False``.
+
+        """
+        # NOTE: We always need this line
+        self._current_row_count.setdefault(parent, 0)
+        # NOTE: Rarely, canFetchMore runs before rowCount. So we add this just in case.
+        self._real_row_count.setdefault(parent, 0)
+
+        return self._current_row_count[parent] < self._real_row_count[parent]
+
+    def fetchMore(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> None:
+        """Add more rows to ``parent``. At least 1, up to the fetch limit.
+
+        Args:
+            parent: Some Qt source location to check rows for.
+
+        """
+        current = self._current_row_count[parent]
+        total_remainder = self._real_row_count[parent] - current
+        to_fetch = min(self._fetch_limit, total_remainder)
+
+        self.beginInsertRows(parent, current, current + to_fetch)
+
+        self._current_row_count[parent] += self._fetch_limit
+
+        self.endInsertRows()
+
+    def invalidate(self) -> None:
+        """Remove all cached row counts and start from scratch again."""
+        self._current_row_count.clear()
+        self._real_row_count.clear()
+
+    def rowCount(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
+        """Get the current row count that we have already populated.
+
+        Args:
+            parent: Some Qt source location to check rows for.
+
+        Returns:
+            The number of rows (from the start this will be 0. We add more rows later).
+
+        """
+        # NOTE: rowCount gets called before the fetch-related methods so we use this
+        # opportunity to get the real size. We will need it for later.
+        #
+        self._real_row_count[parent] = super().rowCount(parent)
+        self._current_row_count.setdefault(parent, 0)
+
+        return self._current_row_count[parent]
+
+
+class _ArtQueryWorker(QtCore.QObject):
     """Handle any high latency / slow functions here.
 
     Attributes:
@@ -175,7 +277,9 @@ class Widget(
         self._artwork_splitter.addWidget(self._details_switcher)
 
         # TODO: Add a switcher for when we're querying artwork data
-        self._thread = _MetThread(parent=self)
+        self._worker = _ArtQueryWorker()
+        self._thread = QtCore.QThread(parent=self)
+        self._worker.moveToThread(self._thread)
 
         top = QtWidgets.QHBoxLayout()
         top.addWidget(self._filter_type)
@@ -192,7 +296,7 @@ class Widget(
         self.set_model(model or art_model.Model([]))
 
         self._initialize_interactive_settings()
-        self._thread.run()
+        self._thread.start()
 
     def _initialize_default_settings(self) -> None:
         """Set the default appearance of child widgets."""
@@ -204,7 +308,6 @@ class Widget(
         self._artwork_view.horizontalHeader().setStretchLastSection(True)
         self._artwork_view.setSelectionBehavior(QtWidgets.QListView.SelectRows)
         self._artwork_view.setSelectionMode(QtWidgets.QListView.ExtendedSelection)
-        self._artwork_view.setSortingEnabled(True)
         self._artwork_view.verticalHeader().hide()
 
         self._filter_type.setToolTip("Press this to filter by artwork-type.")
@@ -219,7 +322,8 @@ class Widget(
 
     def _initialize_interactive_settings(self) -> None:
         """Create any click / automatic functionality for this instance."""
-        self._thread.identifiers_found.connect(self._update_model)
+        self._thread.started.connect(self._worker.run)
+        self._worker.identifiers_found.connect(self._update_model)
 
     def _get_current_artworks(self) -> list[QtCore.QModelIndex]:
         """Get the user's current artwork selection, if any.
@@ -277,9 +381,14 @@ class Widget(
             identifiers: Some Met Museum Artwork IDs (integers) to display.
 
         """
-        proxy = self._artwork_view.model()
-        model = _get_artwork_source_model(proxy)
+        top_proxy = typing.cast(_ArtworkSortFilterProxy, self._artwork_view.model())
+        model = _get_artwork_source_model(top_proxy)
         model.update_artwork_identifiers(identifiers)
+        lowest_proxy = typing.cast(
+            QtCore.QSortFilterProxyModel,
+            iterbot.get_lowest_proxy(top_proxy),
+        )
+        lowest_proxy.invalidate()
 
     def set_model(self, model: art_model.Model) -> None:
         """Store and display source ``model``.
@@ -291,9 +400,15 @@ class Widget(
             RuntimeError: If ``model`` could not be applied as expected due to a bug.
 
         """
-        proxy = _ArtworkProxy(parent=self)
-        proxy.setSourceModel(model)
-        self._artwork_view.setModel(proxy)
+        deferred_proxy = _DeferredLoadProxy(parent=self)
+        deferred_proxy.setSourceModel(model)
+        sorter_proxy = _ArtworkSortFilterProxy(parent=self)
+        sorter_proxy.setSourceModel(deferred_proxy)
+        self._artwork_view.setModel(sorter_proxy)
+        self._artwork_view.setSortingEnabled(True)
+        self._artwork_view.sortByColumn(
+            art_model.Column.title, QtCore.Qt.AscendingOrder
+        )
         selection_model = self._artwork_view.selectionModel()
 
         if not selection_model:
@@ -310,7 +425,9 @@ class Widget(
             event: The Qt-provided event that handles widget closing.
 
         """
-        self._thread.terminate()
+        if self._thread.isRunning():
+            self._thread.quit()
+            self._thread.wait()
 
         super().closeEvent(event)
 

@@ -10,6 +10,41 @@ import typing
 from Qt import QtCore
 
 
+def get_lowest_proxy(
+    model: QtCore.QAbstractProxyModel,
+) -> QtCore.QAbstractProxyModel:
+    """Find the last contiguous proxy, starting from ``model``, which supports invalidation.
+
+    Args:
+        model: The model to search within.
+
+    Raises:
+        RuntimeError: If ``model`` cannot find a valid return proxy.
+
+    Returns:
+        The found proxy.
+
+    """
+    current = model
+    found: QtCore.QAbstractProxyModel | None = None
+
+    while True:
+        if hasattr(current, "invalidate"):
+            found = current
+
+        if hasattr(current, "sourceModel"):
+            current = typing.cast(QtCore.QAbstractProxyModel, current.sourceModel())
+        else:
+            break
+
+    if not found:
+        raise RuntimeError(
+            'Model "{model}" has no inner filter proxies.'.format(model=model)
+        )
+
+    return found
+
+
 def get_lowest_source(model: QtCore.QAbstractItemModel) -> QtCore.QAbstractItemModel:
     """Find the lower-most source model, starting from ``model``.
 
