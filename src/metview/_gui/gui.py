@@ -9,6 +9,7 @@ import typing
 
 from Qt import QtCore, QtGui, QtWidgets
 
+from .._core import constant
 from .._restapi import met_get, met_get_type
 from .common import common_qt, iterbot
 from .models import art_model, model_type
