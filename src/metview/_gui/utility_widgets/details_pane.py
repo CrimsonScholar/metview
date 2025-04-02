@@ -2,10 +2,10 @@
 
 import typing
 
-from Qt import QtGui, QtWidgets
+from Qt import QtCore, QtGui, QtWidgets
 
 from ..common import common_qt
-from ..models import model_type
+from ..models import art_model, model_type
 
 
 class _DetailsPage(QtWidgets.QWidget):
@@ -13,12 +13,13 @@ class _DetailsPage(QtWidgets.QWidget):
 
     def __init__(
         self,
-        artwork: model_type.Artwork,
+        index: QtCore.QModelIndex,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         """Initialize the child widgets for this instance.
 
         Args:
+            index: The source Qt index to display.
             parent: The GUI that owns this instance, if any.
 
         """
@@ -74,18 +75,35 @@ class _DetailsPage(QtWidgets.QWidget):
         """Hide all artwork display details."""
         self._artwork_line.clear()
         self._artist_line.clear()
+        self._datetime_line.clear()
         self.clear_thumbnail()
 
     def clear_thumbnail(self) -> None:
         """Hide any artwork thumbnail display."""
         self._thumbnail_switcher.setCurrentWidget(self._no_thumbnail_label)
 
-    def set_current_artwork(self, artwork: model_type.Artwork) -> None:
-        """Display the ``artwork`` in this instance."""
-        self._artwork_line.setText(artwork.get_title())
-        self._artist_line.setText(artwork.get_artist())
+    def set_current_artwork(self, index: QtCore.QModelIndex) -> None:
+        """Display the ``artwork`` in this instance.
 
-        if thumbnail := artwork.get_thumbnail_data():
+        Args:
+            index: The source Qt index to display.
+
+        """
+        self._artwork_line.setText(_get_display(index, art_model.Column.title))
+        self._artist_line.setText(_get_display(index, art_model.Column.artist))
+        self._datetime_line.setText(_get_display(index, art_model.Column.datetime))
+
+        thumbnail_index = index.siblingAtColumn(art_model.Column.thumbnail)
+
+        if not thumbnail_index.isValid():
+            raise RuntimeError(f'Index "{index}" has no thumbnail.')
+
+        thumbnail = typing.cast(
+            str | None,
+            thumbnail_index.data(art_model.Model.data_role),
+        )
+
+        if thumbnail:
             # TODO: Make sure this code works later
             self._thumbnail_label.setPixmap(QtGui.QPixmap(thumbnail))
 
@@ -96,12 +114,12 @@ class DetailsPane(QtWidgets.QTabWidget):  # pylint: disable=too-few-public-metho
     """A QTabWidget that is meant to show artwork."""
 
     def set_current_artworks(
-        self, artworks: typing.Iterable[model_type.Artwork]
+        self, indices: typing.Iterable[QtCore.QModelIndex]
     ) -> None:
         """Clear all existing artworks and populate with ``artworks``.
 
         Args:
-            artworks: The Met artwork to show.
+            indices: The source Qt indices (Met Artwork) to show.
 
         """
         self.clear()
@@ -109,5 +127,31 @@ class DetailsPane(QtWidgets.QTabWidget):  # pylint: disable=too-few-public-metho
         # TODO: Make sure this looks good even if titles are rathger long
         # + lots of ``artworks`` selected at-once.
         #
-        for artwork in artworks:
-            self.addTab(_DetailsPage(artwork), artwork.get_title())
+        for index in indices:
+            self.addTab(
+                _DetailsPage(index), _get_display(index, art_model.Column.title)
+            )
+
+
+def _get_display(index: QtCore.QModelIndex, column: int) -> str:
+    """Get the user-display text starting from ``index``.
+
+    Args:
+        index: Some source Qt index to look through for data.
+        column: The specific data to find. e.g. :obj:`.Column.datetime`.
+
+    Raises:
+        RuntimeError: If we cannot resolve a valid index from ``index`` and ``column``.
+
+    Returns:
+        The found displayable text.
+
+    """
+    sibling = index.siblingAtColumn(column)
+
+    if not sibling.isValid():
+        raise RuntimeError(
+            f'Cannot get display text, "{index} / {column}" has no valid sibling.',
+        )
+
+    return typing.cast(str, sibling.data(QtCore.Qt.DisplayRole))

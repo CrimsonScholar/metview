@@ -221,7 +221,7 @@ class Widget(
         """Create any click / automatic functionality for this instance."""
         self._thread.identifiers_found.connect(self._update_model)
 
-    def _get_current_artworks(self) -> list[model_type.Artwork]:
+    def _get_current_artworks(self) -> list[QtCore.QModelIndex]:
         """Get the user's current artwork selection, if any.
 
         Raises:
@@ -239,7 +239,7 @@ class Widget(
             )
 
         invalids: list[typing.Any] = []
-        output: list[model_type.Artwork] = []
+        output: list[QtCore.QModelIndex] = []
         selected = model.selectedIndexes()
 
         for index in iterbot.iter_unique_rows(selected):
@@ -248,12 +248,19 @@ class Widget(
             if not isinstance(data, model_type.Artwork):
                 invalids.append(data)
 
-            output.append(data)
+            output.append(index)
 
         if invalids:
             raise RuntimeError(f'Got unknown "{invalids}" data. Expected arkwork!')
 
-        return output
+        # IMPORTANT: ``output`` contains proxy indices which could cause the GUI to seg
+        # fault if the user messes with filters so we get the real source index before
+        # returning.
+        #
+        proxy = self._artwork_view.model()
+        source = iterbot.get_lowest_source(proxy)
+
+        return [iterbot.map_to_source_recursively(index, source) for index in output]
 
     def _update_details_pane(self) -> None:
         """Show or hide the details pane if the user has selected some artwork."""

@@ -76,3 +76,46 @@ def iter_unique_rows(
             rows[key] = index
 
     return list(rows.values())
+
+
+def map_to_source_recursively(
+    index: QtCore.QModelIndex,
+    source_model: QtCore.QAbstractItemModel,
+) -> QtCore.QModelIndex:
+    """Convert ``index`` from whatever model it is to an index in ``source_model``.
+
+    Args:
+        index:
+            The row / column / parent index to convert into a source index.
+        source_model:
+            The model to map into.
+
+    Raises:
+        RuntimeError: If no source index / model could be found.
+
+    Returns:
+        The found source index, using ``index``.
+
+    """
+    model = index.model()
+    original = model
+
+    current_index = index
+
+    while (
+        model != source_model
+        and hasattr(model, "sourceModel")
+        and hasattr(model, "mapToSource")
+    ):
+        current_index = model.mapToSource(current_index)
+
+        model = model.sourceModel()
+
+    if model != source_model:
+        raise RuntimeError(
+            'Model "{original}" could not be mapped to our source model, "{source_model}".'.format(
+                original=original, source_model=source_model
+            )
+        )
+
+    return current_index

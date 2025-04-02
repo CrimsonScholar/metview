@@ -4,16 +4,32 @@ import typing
 
 from Qt import QtCore
 
-from . import model_type
 from ..._restapi import met_get_type
+from . import model_type
+
+_ARTIST_TOOLTIP = "The person, group, or entity that created the art."
+_DATETIME_TOOLTIP = (
+    "The year or expected period when the art was made. "
+    "If some art took multiple years or the time period is unknown, "
+    "a date range is given."
+)
+_TITLE_TOOLTIP = "The name of the artwork, if any"
 
 
-_ARTWORK_COLUMN = 0
-_DATE_COLUMN = 1
-_ARTIST_COLUMN = 2
+class Column:
+    """Symbolic constants that indicate where we can access specific data."""
+
+    title = 0
+    datetime = 1
+    artist = 2
+
+    # NOTE: We don't actally display this column anywhere but we do use it to
+    # ToolTipRole thumbnail information when it is needed.
+    #
+    thumbnail = 1000001
 
 
-class Model(QtCore.QAbstractListModel):
+class Model(QtCore.QAbstractTableModel):
     """The MVC model that interacts between The Met's API and Qt.
 
     Attributes:
@@ -90,41 +106,37 @@ class Model(QtCore.QAbstractListModel):
         if orientation == QtCore.Qt.Vertical:
             return None
 
-        if section == _ARTWORK_COLUMN:
+        if section == Column.title:
             if role == QtCore.Qt.DisplayRole:
                 return "Title"
 
             if role == QtCore.Qt.ToolTipRole:
-                return "The name of the artwork, if any"
+                return _TITLE_TOOLTIP
 
             return None
 
-        if section == _DATE_COLUMN:
+        if section == Column.datetime:
             if role == QtCore.Qt.DisplayRole:
                 return "Date"
 
             if role == QtCore.Qt.ToolTipRole:
-                return (
-                    "The year or expected period when the art was made. "
-                    "If some art took multiple years or the time period is unknown, "
-                    "a date range is given."
-                )
+                return _DATETIME_TOOLTIP
 
             return None
 
-        if section == _ARTIST_COLUMN:
+        if section == Column.artist:
             if role == QtCore.Qt.DisplayRole:
                 return "Artist"
 
             if role == QtCore.Qt.ToolTipRole:
-                return "The person, group, or entity that created the art."
+                return _ARTIST_TOOLTIP
 
             return None
 
         return None
 
     def columnCount(
-        self, _: QtCore.QModelIndex = QtCore.QModelIndex()
+        self, parent: QtCore.QModelIndex = QtCore.QModelIndex()
     ) -> int:  # pylint: disable=invalid-name
         """Get the number of columns to show in a view by default.
 
@@ -160,27 +172,45 @@ class Model(QtCore.QAbstractListModel):
         if role == QtCore.Qt.ToolTipRole:
             return self._get_artwork(index).get_tooltip()
 
-        if column == _ARTWORK_COLUMN:
+        if column == Column.title:
             if role == QtCore.Qt.DisplayRole:
                 return self._get_artwork(index).get_title()
 
+            if role == QtCore.Qt.ToolTipRole:
+                return _TITLE_TOOLTIP
+
             return None
 
-        if column == _DATE_COLUMN:
+        if column == Column.datetime:
             if role == QtCore.Qt.DisplayRole:
                 artwork = self._get_artwork(index)
                 start, end = artwork.get_datetime_range()
 
                 return f"{start} - {end}"
 
+            if role == QtCore.Qt.ToolTipRole:
+                return _DATETIME_TOOLTIP
+
             if role == self.data_role:
                 return self._get_artwork(index).get_datetime_range()
 
             return None
 
-        if column == _ARTIST_COLUMN:
+        if column == Column.artist:
             if role == QtCore.Qt.DisplayRole:
                 return self._get_artwork(index).get_artist()
+
+            if role == QtCore.Qt.ToolTipRole:
+                return _ARTIST_TOOLTIP
+
+            return None
+
+        if column == Column.thumbnail:
+            if role == QtCore.Qt.DisplayRole:
+                return self._get_artwork(index).get_thumbnail_data()
+
+            if role == QtCore.Qt.ToolTipRole:
+                return "The raw thumbnail bytes to load into an image. Be careful!"
 
             return None
 

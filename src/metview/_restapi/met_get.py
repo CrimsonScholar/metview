@@ -9,7 +9,6 @@ import requests
 
 from . import met_get_type
 
-
 _ARTIST_NAME_NOT_FOUND = "<No artist name>"
 _TITLE_NOT_FOUND = "<No title>"
 # Reference: https://datatracker.ietf.org/doc/html/rfc3986
