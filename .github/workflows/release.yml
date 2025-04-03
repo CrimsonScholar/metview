@@ -9,7 +9,8 @@ on:
       - get_ci_working
 
 jobs:
-  build:
+  build_and_release:
+    name: "Build And Release - Python ${{ matrix.python-version }}"
     runs-on: macos-latest
 
     strategy:
