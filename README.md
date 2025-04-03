@@ -1,6 +1,20 @@
+Hello!
+
+Thank you for the nice assessment test, it was fun! Before we continue I wanted to note a couple things.
+
+1. Please see `NOTES.md`, it explains any design decisions or things
+   I encountered during this test.
+2. All other files, including this one, I will be "in character".
+   Please read this as though it were a real git repository.
+3. If I need to "break character", I will note it with a "XXX:" prefix.
+
+That's all for now!
+
+
 # metview
-`metview` lets you easily view, search, filter, and browse great Works of Art from [The
-Metropolitan Museum Of Art](The Metropolitan Museum Of Art)!
+`metview` lets you easily view, search, filter, and browse great Works of Art from
+[The Metropolitan Museum Of Art](The Metropolitan Museum Of Art)!
+
 
 ## How To Use
 TODO: Fill this out later

@@ -105,7 +105,9 @@ class _DetailsPage(QtWidgets.QWidget):
         maximum_height = self._thumbnail_label.maximumHeight()
 
         if pixmap.height() > maximum_height:
-            pixmap = pixmap.scaledToHeight(maximum_height, QtCore.Qt.SmoothTransformation)
+            pixmap = pixmap.scaledToHeight(
+                maximum_height, QtCore.Qt.SmoothTransformation
+            )
 
         return pixmap
 
