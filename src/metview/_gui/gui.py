@@ -499,17 +499,6 @@ class Window(QtWidgets.QWidget):  # pylint: disable=too-few-public-methods
         golden_ratio = 1.618
         self.resize(int(math.floor(height * golden_ratio)), height)
 
-    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        """Force any ongoing work to terminate before closing.
-
-        Args:
-            event: The Qt-provided event that handles widget closing.
-
-        """
-        self._widget.close()
-
-        super().closeEvent(event)
-
 
 class Widget(
     QtWidgets.QWidget
@@ -847,18 +836,6 @@ class Widget(
             )
 
         selection_model.selectionChanged.connect(self._update_details_pane)
-
-    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        """Force any ongoing work to terminate before closing.
-
-        Args:
-            event: The Qt-provided event that handles widget closing.
-
-        """
-        self._stop_masked_proxy_threads()
-        self._thread.terminate()
-
-        super().closeEvent(event)
 
 
 def _get_artwork_source_model(proxy: QtCore.QAbstractItemModel) -> art_model.Model:
