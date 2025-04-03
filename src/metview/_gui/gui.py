@@ -446,7 +446,6 @@ class _MaskedDataProxy(
             )
             worker.moveToThread(thread)
             self._threads.append((thread, worker))
-            # TODO: Consider limiting to 80 requests a second
             thread.start()
 
     def stop(self) -> None:
@@ -495,8 +494,7 @@ class Window(QtWidgets.QWidget):  # pylint: disable=too-few-public-methods
         main_layout.addLayout(bottom)
 
         self.setWindowTitle("MetViewer")
-        # TODO: Add an icon
-        # self.setWindowIcon()
+        self.setWindowIcon(QtGui.QIcon(f"{constant.QT_PREFIX}:window.svg"))
         self.setWindowFlag(QtCore.Qt.Window)
 
         self._widget.layout().setContentsMargins(0, 0, 0, 0)
