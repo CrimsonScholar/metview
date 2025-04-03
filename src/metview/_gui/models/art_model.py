@@ -1,5 +1,6 @@
 """The MVC model that interacts between The Met's API and Qt."""
 
+import enum
 import typing
 
 from Qt import QtCore
@@ -16,7 +17,7 @@ _DATETIME_TOOLTIP = (
 _TITLE_TOOLTIP = "The name of the artwork, if any"
 
 
-class Column:
+class Column(enum.IntEnum):
     """Symbolic constants that indicate where we can access specific data."""
 
     title = 0
@@ -44,6 +45,7 @@ class Model(QtCore.QAbstractTableModel):
 
     """
 
+    _columns = Column.__members__.values()
     artwork_role = QtCore.Qt.UserRole
     data_role = QtCore.Qt.UserRole + 1
 
@@ -231,6 +233,33 @@ class Model(QtCore.QAbstractTableModel):
             return None
 
         return None
+
+    def index(
+        self,
+        row: int,
+        column: int,
+        parent: QtCore.QModelIndex=QtCore.QModelIndex(),
+    ) -> QtCore.QModelIndex:
+        """Create a Qt index for ``row`` and ``column`` underneath ``parent``.
+
+        Args:
+            row: The horizontal location of some Qt index.
+            column: The vertical location of some Qt index.
+            parent: The starting index, if any.
+
+        Returns:
+            A valid or invalid index.
+
+        """
+        try:
+            identifier = self._identifiers[row]
+        except IndexError:
+            return QtCore.QModelIndex()
+
+        if column not in self._columns:
+            return QtCore.QModelIndex()
+
+        return self.createIndex(row, column, identifier)
 
     # TODO: (performance) - Make this faster later (using fetchMore and caching)
     def rowCount(
