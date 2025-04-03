@@ -1,0 +1,35 @@
+name: Lint Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    name: "Running ${{ matrix.checker }} with Python ${{ matrix.python-version }}"
+
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+        checker: ["black", "isort", "pydocstyle", "pylint"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Tox
+        run: pip install tox
+
+      - name: Run
+        run: tox -e check-${{ matrix.checker }}

@@ -54,5 +54,4 @@ tox -e python-{version}
 tox -e python-3.12
 tox -e python-3.11
 tox -e python-3.10
-tox -e python-3.9
 ```
