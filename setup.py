@@ -1,8 +1,23 @@
+"""The main packaging file."""
+
 import os
 import setuptools
+import sys
 
 
 _CURRENT_DIRECTORY = os.path.join(os.path.dirname(__file__))
+_VERSION = "1.0.0"
+
+_EXTRA_OPTIONS: dict[str, str] = {}
+
+
+if sys.platform == "darwin":
+    _PY2APP_OPTIONS = {"packages": ["PySide6", "Qt.py", "requests"]}
+    _EXTRA_OPTIONS = dict(
+        app=[os.path.join(_CURRENT_DIRECTORY, "src", "metview_application.py")],
+        options={"py2app": _PY2APP_OPTIONS},
+        setup_requires=["py2app"],
+    )
 
 
 def read(*names: list[str]) -> str:
@@ -11,7 +26,6 @@ def read(*names: list[str]) -> str:
         return file_.read()
 
 
-# TODO: Fill this out
 setuptools.setup(
     author="Colin Kennedy",
     author_email="colinvfx@gmail.com",
@@ -19,7 +33,7 @@ setuptools.setup(
         # Complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: No-License",
+        "License :: OSI Approved :: The Unlicense (Unlicense)",
         "Operating System :: Unix",
         "Operating System :: MacOS X",
         "Operating System :: POSIX",
@@ -37,5 +51,6 @@ setuptools.setup(
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.10",
-    version="1.0.0",
+    version=_VERSION,
+    **_EXTRA_OPTIONS,
 )

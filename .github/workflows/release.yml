@@ -1,0 +1,42 @@
+name: Build And Release MacOS X App
+
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      # TODO: Remove this later
+      - get_ci_working
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install py2app
+
+      - name: Build macOS App Bundle
+        run: python setup.py py2app
+
+      - name: Rename App Bundle
+        run: mv dist/metview.app dist/metview-${{ matrix.python-version }}.app
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/metview-${{ matrix.python-version }}.app
