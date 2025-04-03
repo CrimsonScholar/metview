@@ -178,7 +178,10 @@ class Model(QtCore.QAbstractTableModel):
             return self._get_artwork(index).get_tooltip()
 
         if column == Column.title:
-            if role in {QtCore.Qt.DisplayRole, self.data_role}:
+            if role == QtCore.Qt.DisplayRole:
+                return self._get_artwork(index).get_title() or "<No title found>"
+
+            if role == self.data_role:
                 return self._get_artwork(index).get_title()
 
             if role == QtCore.Qt.ToolTipRole:
@@ -206,6 +209,9 @@ class Model(QtCore.QAbstractTableModel):
 
         if column == Column.artist:
             if role == QtCore.Qt.DisplayRole:
+                return self._get_artwork(index).get_artist() or "<No artist found>"
+
+            if role == self.data_role:
                 return self._get_artwork(index).get_artist()
 
             if role == QtCore.Qt.ToolTipRole:

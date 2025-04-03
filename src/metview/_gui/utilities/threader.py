@@ -25,11 +25,11 @@ class ArtQueryWorker(QtCore.QObject):
     def run(self) -> None:
         """Look for Met Museum IDs and update the parent thread when it is ready."""
         identifiers = met_get.get_all_identifiers()
-        # IMPORTANT: Lower identifiers tend to be empty or have missing contents so we
-        # will prioritize the later IDs. Both may get displayed in the end so this is
-        # just done to give the user a meaningful GUI result sooner.
+        # IMPORTANT: Higher identifiers tend to have no thumbnails so we will prioritize
+        # the later IDs. Both may get displayed in the end so this is just done to give
+        # the user a meaningful GUI result sooner.
         #
-        self.identifiers_found.emit(sorted(identifiers, reverse=True))
+        self.identifiers_found.emit(sorted(identifiers))
 
 
 class QueryArtworkDetailsWorker(QtCore.QObject):
