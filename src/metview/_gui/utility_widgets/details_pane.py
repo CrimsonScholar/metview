@@ -5,7 +5,7 @@ import typing
 
 from Qt import QtCore, QtGui, QtWidgets
 
-from ..common import common_qt
+from ..common import common_qt, iterbot
 from ..models import art_model, model_type
 
 _LOGGER = logging.getLogger(__name__)
