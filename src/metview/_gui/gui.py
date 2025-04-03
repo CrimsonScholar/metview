@@ -565,6 +565,8 @@ class Widget(
         common_qt.initialize_framed_label(self._details_no_selection_label)
         self._artwork_splitter.setHandleWidth(25)  # Arbitrary, thick value
         self._details_switcher.setCurrentWidget(self._details_no_selection_label)
+        self._details_pane.setTabBarAutoHide(True)
+
         self._filter_line.setPlaceholderText("Example: La Grenouillère")
 
         self._no_artwork_label.setToolTip(
