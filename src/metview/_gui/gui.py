@@ -21,6 +21,7 @@ from .utility_widgets import details_pane
 
 _DEFAULT_LOADING_MESSAGE = "Loading..."
 _LOGGER = logging.getLogger(__name__)
+T = typing.TypeVar("T")
 
 
 class _ArtworkSortFilterProxy(QtCore.QSortFilterProxyModel):
@@ -376,7 +377,7 @@ class _MaskedDataProxy(PySide_QtCore.QIdentityProxyModel):
         ) -> list[list[QtCore.QModelIndex]]:
             chunk = 10  # NOTE: An abitrary value to help minimize the number of threads
             rows = list(range(start, end))
-            groups = [rows[index::chunk] for index in range(chunk)]
+            groups = _group_nth(rows, chunk)
             output: list[list[QtCore.QModelIndex]] = []
 
             for subgroup in groups:
@@ -801,3 +802,27 @@ def _get_artwork_source_model(proxy: QtCore.QAbstractItemModel) -> art_model.Mod
         return source
 
     raise RuntimeError(f'Expected a art_model.Model source but got "{source}" instead.')
+
+
+def _group_nth(items: typing.Sequence[T], max: int) -> list[T]:
+    """Group a list of items into sublists of max length max.
+
+    If ``items`` does not divide evenly into ``max``, the last subgroup will
+    have ``len(elements) < max``. All other subgroups will have exactly
+    ``len(elements) == max``.
+
+    Args:
+        items: All of the values to group together.
+        max: The highest number of elements per sub-group.
+
+    Raises:
+        ValueError: If ``max`` is less than 1.
+
+    Returns:
+        All grouped values.
+
+    """
+    if max <= 0:
+        raise ValueError(f'Max "{max}" must be 0-or-more.')
+
+    return [items[i:i + max] for i in range(0, len(items), max)]
