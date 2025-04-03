@@ -212,7 +212,7 @@ class Model(QtCore.QAbstractTableModel):
             return None
 
         if column == Column.thumbnail:
-            if role == QtCore.Qt.DisplayRole:
+            if role == self.data_role:
                 return self._get_artwork(index).get_thumbnail_data()
 
             if role == QtCore.Qt.ToolTipRole:

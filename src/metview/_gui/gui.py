@@ -9,6 +9,7 @@ import logging
 import math
 import typing
 
+from PySide6 import QtCore as PySide_QtCore
 from Qt import QtCore, QtGui, QtWidgets
 
 from .._core import constant
@@ -113,7 +114,6 @@ class _ArtworkSortFilterProxy(QtCore.QSortFilterProxyModel):
         return _get_default_text(left) < _get_default_text(right)
 
 
-# NOTE: Ideally we'd use QIdentityProxyModel here but that isn't defined in Qt.py yet
 class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
     """Extend a source model with "load more" capabilities.
 
@@ -206,8 +206,7 @@ class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
         return self._current_row_count[parent]
 
 
-# NOTE: Ideally we'd use QIdentityProxyModel here but that isn't defined in Qt.py yet
-class _MaskedDataProxy(QtCore.QSortFilterProxyModel):
+class _MaskedDataProxy(PySide_QtCore.QIdentityProxyModel):
     """A proxy that masks and batches requests to The Met's REST API.
 
     Qt does not allow us developers to decide when and how often its MVC model data is
@@ -263,9 +262,14 @@ class _MaskedDataProxy(QtCore.QSortFilterProxyModel):
 
         """
         artwork = typing.cast(
-            model_type.Artwork,
+            model_type.Artwork | None,
             index.data(art_model.Model.artwork_role),
         )
+
+        if not artwork:
+            _LOGGER.warning('Index "%s" has no artwork data.', index)
+
+            return False
 
         return artwork.is_details_populated()
 
