@@ -344,7 +344,11 @@ class _MaskedDataProxy(PySide_QtCore.QIdentityProxyModel):
         ) -> None:
             if not start.isValid() or not end.isValid():
                 # NOTE: This should be super rare, if no impossible to happen.
-                _LOGGER.warning('We cannot update. The "%s / %s" indices are invalid.')
+                _LOGGER.warning(
+                    'We cannot update. The "%s / %s" indices are invalid.',
+                    start,
+                    end,
+                )
 
                 return
 
