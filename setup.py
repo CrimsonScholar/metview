@@ -12,7 +12,7 @@ _EXTRA_OPTIONS: dict[str, str] = {}
 
 
 if sys.platform == "darwin":
-    _PY2APP_OPTIONS = {"packages": ["PySide6", "Qt.py", "requests"]}
+    _PY2APP_OPTIONS = {"packages": ["PySide6", "requests"]}
     _EXTRA_OPTIONS = dict(
         app=[os.path.join(_CURRENT_DIRECTORY, "src", "metview_application.py")],
         options={"py2app": _PY2APP_OPTIONS},

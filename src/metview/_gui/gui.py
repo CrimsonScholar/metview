@@ -10,8 +10,7 @@ import math
 import time
 import typing
 
-from PySide6 import QtCore as PySide_QtCore
-from Qt import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from .._core import constant
 from .._restapi import met_get_type
@@ -209,13 +208,7 @@ class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
         return self._current_row_count[parent]
 
 
-class _MaskedDataProxy(
-    # NOTE: This cast is a bit complex. In short - Qt.py doesn't define
-    # QIdentityProxyModel (but we really need it). And mypy thinks the two types are
-    # incompatible. They actually are compatible but mypy doesn't know it.
-    #
-    typing.cast(QtCore.QAbstractProxyModel, PySide_QtCore.QIdentityProxyModel),  # type: ignore[misc]
-):
+class _MaskedDataProxy(QtCore.QIdentityProxyModel):
     """A proxy that masks and batches requests to The Met's REST API.
 
     Qt does not allow us developers to decide when and how often its MVC model data is
