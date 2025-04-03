@@ -32,7 +32,7 @@ jobs:
         run: python setup.py py2app
 
       - name: Compress (Tar) The App Bundle
-        run: tar -czf dist/metview-python-${{ matrix.python-version }}.app.tar.gz metview.app -C dist
+        run: tar -czf dist/metview-python-${{ matrix.python-version }}.app.tar.gz -C dist metview.app
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
