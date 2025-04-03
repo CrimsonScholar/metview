@@ -587,7 +587,6 @@ class Widget(
         top = QtWidgets.QHBoxLayout()
         top.addWidget(self._filter_type)
         top.addWidget(self._filter_line)
-        top.addWidget(self._filter_details)
         main_layout.addLayout(top)
         main_layout.addWidget(self._artwork_switcher)
 
@@ -637,7 +636,6 @@ class Widget(
 
         self._filter_type.setToolTip("Press this to filter by artwork-type.")
         self._filter_line.setToolTip("Type the name of the Work of Art here.")
-        self._filter_details.setToolTip("Extra, less common filter actions.")
 
         self._details_pane.setToolTip("Information about the selected artwork.")
         self._details_no_selection_label.setToolTip(
