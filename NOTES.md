@@ -33,3 +33,10 @@ Some free icons that were released under an Apache 2.0 license. See the
 Normally I would separate the Qt and non-Qt elements of a repository as separate Python
 packages, each with their own limited APIs. For the sake of simplificity for this test,
 `_restapi` can be considered a separate Python package.
+
+
+# Disclaimer
+## Git Commits
+Normally I squash all or most of my commits and move the commit messages into
+a combined git note. But for the sake of this assessment I thought showing the
+commits might be nice to show.
