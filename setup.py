@@ -5,6 +5,7 @@ import setuptools
 import sys
 
 
+_NAME = "metview"
 _CURRENT_DIRECTORY = os.path.join(os.path.dirname(__file__))
 _VERSION = "1.0.0"
 
@@ -12,7 +13,17 @@ _EXTRA_OPTIONS: dict[str, str] = {}
 
 
 if sys.platform == "darwin":
-    _PY2APP_OPTIONS = {"packages": ["PySide6", "requests"]}
+    _PY2APP_OPTIONS = dict(
+        packages=["PySide6", "requests"],
+        plist=dict(
+            CFBundleDevelopmentRegion="en_US",
+            CFBundleExecutable=_NAME,
+            CFBundleDisplayName=_NAME,
+            CFBundleName=_NAME,
+            CFBundleVersion=_VERSION,
+            CFBundleShortVersionString=_VERSION,
+        ),
+    )
     _EXTRA_OPTIONS = dict(
         app=[os.path.join(_CURRENT_DIRECTORY, "src", "metview_application.py")],
         options={"py2app": _PY2APP_OPTIONS},
@@ -47,7 +58,7 @@ setuptools.setup(
     ],
     install_requires=[read("requirements.txt").splitlines()],
     keywords=["art", "artwork", "qt", "pyside", "search"],
-    name="metview",
+    name=_NAME,
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.10",
