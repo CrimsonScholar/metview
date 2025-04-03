@@ -7,6 +7,7 @@ from __future__ import annotations
 import functools
 import logging
 import math
+import time
 import typing
 
 from PySide6 import QtCore as PySide_QtCore
@@ -22,6 +23,7 @@ from .utility_widgets import details_pane
 _DEFAULT_LOADING_MESSAGE = "Loading..."
 _LOGGER = logging.getLogger(__name__)
 T = typing.TypeVar("T")
+SizedT = typing.TypeVar("SizedT", bound=typing.Sized)
 
 
 class _ArtworkSortFilterProxy(QtCore.QSortFilterProxyModel):
@@ -384,8 +386,8 @@ class _MaskedDataProxy(
 
         def _split_qt_indices_into_chunks(
             qt_indices: typing.Sequence[QtCore.QModelIndex],
+            chunk: int,
         ) -> list[list[QtCore.QModelIndex]]:
-            chunk = 10  # NOTE: An abitrary value to help minimize the number of threads
             rows = list(range(start, end))
             groups = _group_nth(rows, chunk)
             output: list[list[QtCore.QModelIndex]] = []
@@ -395,8 +397,41 @@ class _MaskedDataProxy(
 
             return output
 
-        for qt_indices in _split_qt_indices_into_chunks(
-            _get_all_qt_indices(parent, start, end)
+        def _throttle(
+            sequence: typing.Iterable[SizedT],
+        ) -> typing.Generator[SizedT, None, None]:
+            # IMPORTANT: We throttle our queries just in case because The Met asks
+            # to keep queries < 80 per second.
+            #
+            # Reference: https://metmuseum.github.io
+            # > At this time, we do not require API users to register or obtain an API
+            # > key to use the service. Please limit request rate to 80 requests per
+            # > second.
+            #
+            start_time = time.time()
+            calls_made = 0
+
+            for group in sequence:
+                count = len(group)
+
+                if (calls_made + count) > 80:
+                    elapsed = time.time() - start_time
+
+                    if elapsed < 1:
+                        time.sleep(1 - elapsed)
+
+                    calls_made = 0
+                    start_time = time.time()
+
+                yield group
+
+                calls_made += count
+
+        for qt_indices in _throttle(
+            _split_qt_indices_into_chunks(
+                _get_all_qt_indices(parent, start, end),
+                chunk=10,
+            )
         ):
             worker = threader.QueryArtworkDetailsWorker(qt_indices)
             thread = QtCore.QThread(parent=self)
