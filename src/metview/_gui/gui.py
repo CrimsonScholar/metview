@@ -822,7 +822,6 @@ class Widget(
 
             title = typing.cast(str, title_index.data(QtCore.Qt.DisplayRole))
 
-            # TODO: Consider fuzzymatching
             return text.lower() not in title.lower()
 
         self._stop_masked_proxy_threads()

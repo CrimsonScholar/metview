@@ -178,9 +178,6 @@ class DetailsPane(QtWidgets.QTabWidget):  # pylint: disable=too-few-public-metho
 
         maximum_length = 10
 
-        # TODO: Make sure this looks good even if titles are rathger long
-        # + lots of ``artworks`` selected at-once.
-        #
         for index in indices:
             label = _get_display(index, art_model.Column.title)
 

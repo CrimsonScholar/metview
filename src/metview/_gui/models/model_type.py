@@ -48,7 +48,6 @@ class Artwork:
             ID: {self._identifier!r}"""
         )
 
-    # TODO: Consider refactoring this ``if precompute ... return foo`` pattern
     def get_artist(self) -> str:
         """Get the artwork name / title."""
         if not self._details:

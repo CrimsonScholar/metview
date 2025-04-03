@@ -285,7 +285,6 @@ class Model(QtCore.QAbstractTableModel):
 
         return self.createIndex(row, column, identifier)
 
-    # TODO: (performance) - Make this faster later (using fetchMore and caching)
     def rowCount(
         self, _: QtCore.QModelIndex = QtCore.QModelIndex()
     ) -> int:  # pylint: disable=invalid-name
