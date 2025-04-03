@@ -1,6 +1,7 @@
 Hello!
 
-Thank you for the nice assessment test, it was fun! Before we continue I wanted to note a couple things.
+Thank you for the nice assessment test, it was fun!
+Before we continue I wanted to note a couple things.
 
 1. Please see `NOTES.md`, it explains any design decisions or things
    I encountered during this test.
@@ -62,6 +63,7 @@ tox -e check-pydocstyle
 tox -e check-isort
 tox -e check-black
 ```
+
 
 ### How To Test
 ```sh
