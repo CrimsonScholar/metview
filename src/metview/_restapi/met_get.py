@@ -14,6 +14,11 @@ _TITLE_NOT_FOUND = "<No title>"
 # Reference: https://datatracker.ietf.org/doc/html/rfc3986
 _BASE = os.getenv("MET_MUSEUM_API_DOMAIN", "https://collectionapi.metmuseum.org")
 
+# XXX: While testing these indices consistently had bad / missing data. We
+# might as well exclude them for the sake of this assessment.
+#
+_KNOWN_BAD_IDENTIFIERS = frozenset((925155,))
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -87,7 +92,7 @@ def get_all_identifiers() -> list[int]:
 
     data = typing.cast(_ObjectsResponse, response.json())
 
-    return data["objectIDs"]
+    return [value for value in data["objectIDs"] if value not in _KNOWN_BAD_IDENTIFIERS]
 
 
 def get_identifier_data(identifier: str | int) -> ObjectDetails:
