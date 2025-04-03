@@ -48,6 +48,12 @@ Simple customizations for the `metview` CLI.
 
 
 ## Developing
+### Setup
+```sh
+python -m pip install -e .
+````
+
+
 #### How To Lint / CI Check
 ```sh
 tox -e check-mypy

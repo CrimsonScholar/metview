@@ -65,12 +65,20 @@ class Artwork:
         return self._details.datetime_range
 
     def get_classification(self) -> str | None:
-        """Get type / method used to create the artwork."""
+        """Get the type of artwork."""
         if not self._details:
             self.precompute_details()
             self._details = typing.cast(met_get.ObjectDetails, self._details)
 
         return self._details.classification
+
+    def get_medium(self) -> str | None:
+        """Get the material or method used to create the artwork."""
+        if not self._details:
+            self.precompute_details()
+            self._details = typing.cast(met_get.ObjectDetails, self._details)
+
+        return self._details.medium
 
     @functools.lru_cache()
     def get_thumbnail_data(self) -> bytes | None:

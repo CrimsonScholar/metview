@@ -27,15 +27,18 @@ class ObjectDetails(typing.NamedTuple):
 
     Attributes:
         artist: The name, group, or entity that created the Artwork.
-        classification: The type of art, if any. e.g. ``"Print"``, ``"Etching"``, etc.
-        thumbnail_url: The https / http URL to the artwork, if any.
-        title: The name of the art. If no art, a default "no title found" is given.
+        classification: The type of artwork.
+        datetime_range: The start and end date(s) assoicated with the Artwork.
+        medium: The material or method used to create the Artwork.
+        thumbnail_url: The https / http URL to the Artwork, if any.
+        title: The name of the Artwork. If no name, a default "no title found" is given.
 
     """
 
     artist: str
     classification: str | None
     datetime_range: met_get_type.DatetimeRange
+    medium: str | None
     thumbnail_url: str | None
     title: str
 
@@ -45,6 +48,7 @@ class _ObjectDetailsResponse(typing.TypedDict):
 
     artistDisplayName: str
     classification: str | None
+    medium: str | None
     objectBeginDate: int
     objectEndDate: int
     primaryImageSmall: str | None
@@ -123,6 +127,7 @@ def get_identifier_data(identifier: str | int) -> ObjectDetails:
             _get_datetime(data.get("objectBeginDate")),
             _get_datetime(data.get("objectEndDate")),
         ),
-        thumbnail_url=data["primaryImageSmall"] or None,
+        medium=data.get("medium") or None,
+        thumbnail_url=data.get("primaryImageSmall") or None,
         title=data.get("title", _TITLE_NOT_FOUND),
     )

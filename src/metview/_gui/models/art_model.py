@@ -31,6 +31,7 @@ class Column(enum.IntEnum):
     #
     thumbnail = 1000001
     classification = 1000002
+    medium = 1000003
 
 
 class Model(QtCore.QAbstractTableModel):
@@ -252,7 +253,16 @@ class Model(QtCore.QAbstractTableModel):
                 )
 
             if role == QtCore.Qt.ToolTipRole:
-                return "The way that the artwork is presented (e.g. Etching, Print)"
+                return "The type of artwork"
+
+            return None
+
+        if column == Column.medium:
+            if role == QtCore.Qt.DisplayRole:
+                return self._get_artwork(index).get_medium() or "<No medium>"
+
+            if role == QtCore.Qt.ToolTipRole:
+                return "The material or method used to create the artwork"
 
             return None
 

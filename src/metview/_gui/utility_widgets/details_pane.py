@@ -39,6 +39,8 @@ class _DetailsPage(QtWidgets.QWidget):
         self._datetime_line = QtWidgets.QLineEdit()
         self._classifaction_label = QtWidgets.QLabel("Classification:")
         self._classifaction_line = QtWidgets.QLineEdit()
+        self._medium_label = QtWidgets.QLabel("Medium:")
+        self._medium_line = QtWidgets.QLineEdit()
         self._no_thumbnail_label = QtWidgets.QLabel("No thumbnail")
         self._thumbnail_label = QtWidgets.QLabel()
         self._thumbnail_label.setMaximumHeight(200)
@@ -55,6 +57,8 @@ class _DetailsPage(QtWidgets.QWidget):
         summary_layout.addWidget(self._datetime_line, 2, 1, 1, -1)
         summary_layout.addWidget(self._classifaction_label, 3, 0)
         summary_layout.addWidget(self._classifaction_line, 3, 1)
+        summary_layout.addWidget(self._medium_label, 4, 0)
+        summary_layout.addWidget(self._medium_line, 4, 1)
         main_layout.addLayout(summary_layout)
         main_layout.addWidget(self._thumbnail_switcher, alignment=QtCore.Qt.AlignCenter)
         main_layout.addItem(
@@ -72,6 +76,7 @@ class _DetailsPage(QtWidgets.QWidget):
         self._artist_line.setReadOnly(True)
         self._datetime_line.setReadOnly(True)
         self._classifaction_line.setReadOnly(True)
+        self._medium_line.setReadOnly(True)
 
         common_qt.initialize_framed_label(self._no_thumbnail_label)
 
@@ -84,9 +89,12 @@ class _DetailsPage(QtWidgets.QWidget):
         tip = "The year / period that the artwork was thought to be made during."
         self._datetime_label.setToolTip(tip)
         self._datetime_line.setToolTip(tip)
-        tip = "The way that the artwork was presented / created (e.g. Etching, Print)"
+        tip = "The type of artwork"
         self._classifaction_label.setToolTip(tip)
         self._classifaction_line.setToolTip(tip)
+        tip = "The material or method used to creatg the artwork"
+        self._medium_label.setToolTip(tip)
+        self._medium_line.setToolTip(tip)
         self._no_thumbnail_label.setToolTip("No artwork image preview could be found.")
         self._thumbnail_label.setToolTip("Here is what the artwork looks like.")
 
@@ -117,6 +125,7 @@ class _DetailsPage(QtWidgets.QWidget):
         self._artist_line.clear()
         self._datetime_line.clear()
         self._classifaction_line.clear()
+        self._medium_line.clear()
         self.clear_thumbnail()
 
     def clear_thumbnail(self) -> None:
@@ -136,6 +145,7 @@ class _DetailsPage(QtWidgets.QWidget):
         self._classifaction_line.setText(
             _get_display(index, art_model.Column.classification)
         )
+        self._medium_line.setText(_get_display(index, art_model.Column.medium))
 
         source = iterbot.get_lowest_source(index.model())
         source_index = iterbot.map_to_source_recursively(index, source)
