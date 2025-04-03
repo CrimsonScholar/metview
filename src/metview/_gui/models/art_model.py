@@ -214,6 +214,9 @@ class Model(QtCore.QAbstractTableModel):
             return None
 
         if column == Column.thumbnail:
+            if role == QtCore.Qt.DisplayRole:
+                return self._get_artwork(index).get_thumbnail_url()
+
             if role == self.data_role:
                 try:
                     return self._get_artwork(index).get_thumbnail_data()

@@ -28,7 +28,7 @@ class _DetailsPage(QtWidgets.QWidget):
         """
         super().__init__(parent)
 
-        main_layout = QtWidgets.QGridLayout()
+        main_layout = QtWidgets.QVBoxLayout()
         self.setLayout(main_layout)
 
         self._artwork_label = QtWidgets.QLabel("Title:")
@@ -41,28 +41,26 @@ class _DetailsPage(QtWidgets.QWidget):
         self._classifaction_line = QtWidgets.QLineEdit()
         self._no_thumbnail_label = QtWidgets.QLabel("No thumbnail")
         self._thumbnail_label = QtWidgets.QLabel()
+        self._thumbnail_label.setMaximumHeight(200)
         self._thumbnail_switcher = QtWidgets.QStackedWidget()
         self._thumbnail_switcher.addWidget(self._no_thumbnail_label)
         self._thumbnail_switcher.addWidget(self._thumbnail_label)
 
-        # TODO: Add better column stretch
-        main_layout.addWidget(self._artwork_label, 0, 0)
-        main_layout.addWidget(self._artwork_line, 0, 1)
-        main_layout.addWidget(self._artist_label, 1, 0)
-        main_layout.addWidget(self._artist_line, 1, 1)
-        main_layout.addWidget(self._thumbnail_switcher, 0, 2, 2, 2)
-        main_layout.addWidget(self._datetime_label, 2, 0)
-        main_layout.addWidget(self._datetime_line, 2, 1, 1, -1)
-        main_layout.addWidget(self._classifaction_label, 3, 0)
-        main_layout.addWidget(self._classifaction_line, 3, 1, 1, -1)
+        summary_layout = QtWidgets.QGridLayout()
+        summary_layout.addWidget(self._artwork_label, 0, 0)
+        summary_layout.addWidget(self._artwork_line, 0, 1)
+        summary_layout.addWidget(self._artist_label, 1, 0)
+        summary_layout.addWidget(self._artist_line, 1, 1)
+        summary_layout.addWidget(self._datetime_label, 2, 0)
+        summary_layout.addWidget(self._datetime_line, 2, 1, 1, -1)
+        summary_layout.addWidget(self._classifaction_label, 3, 0)
+        summary_layout.addWidget(self._classifaction_line, 3, 1)
+        main_layout.addLayout(summary_layout)
+        main_layout.addWidget(self._thumbnail_switcher, alignment=QtCore.Qt.AlignCenter)
         main_layout.addItem(
             QtWidgets.QSpacerItem(
                 1, 1, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
             ),
-            main_layout.count(),
-            4,
-            1,
-            -1,
         )
 
         self._initialize_default_settings()
@@ -92,6 +90,25 @@ class _DetailsPage(QtWidgets.QWidget):
         self._no_thumbnail_label.setToolTip("No artwork image preview could be found.")
         self._thumbnail_label.setToolTip("Here is what the artwork looks like.")
 
+    def _make_thumbnail_pixmap(self, thumbnail: bytes) -> QtGui.QPixmap:
+        """Load ``thumbnail`` image as a Qt object.
+
+        Args:
+            thumbnail: Some blob of jpg / png / something data to load.
+
+        Returns:
+            The loaded image.
+
+        """
+        pixmap = QtGui.QPixmap()
+        pixmap.loadFromData(QtCore.QByteArray(thumbnail))
+        maximum_height = self._thumbnail_label.maximumHeight()
+
+        if pixmap.height() > maximum_height:
+            pixmap = pixmap.scaledToHeight(maximum_height, QtCore.Qt.SmoothTransformation)
+
+        return pixmap
+
     def clear_current_artwork(self) -> None:
         """Hide all artwork display details."""
         self._artwork_line.clear()
@@ -118,18 +135,20 @@ class _DetailsPage(QtWidgets.QWidget):
             _get_display(index, art_model.Column.classification)
         )
 
-        thumbnail_index = index.siblingAtColumn(art_model.Column.thumbnail)
-        thumbnail: str | None = None
+        source = iterbot.get_lowest_source(index.model())
+        source_index = iterbot.map_to_source_recursively(index, source)
+        thumbnail_index = source_index.siblingAtColumn(art_model.Column.thumbnail)
+        thumbnail: bytes | None = None
 
         if not thumbnail_index.isValid():
-            _LOGGER.warning('Index "%s" has no thumbnail index.', index)
+            _LOGGER.warning('Index "%s" has no thumbnail index.', source_index)
 
             self._thumbnail_switcher.setCurrentWidget(self._no_thumbnail_label)
 
             return
 
         thumbnail = typing.cast(
-            str | None,
+            bytes | None,
             thumbnail_index.data(art_model.Model.data_role),
         )
 
@@ -138,8 +157,8 @@ class _DetailsPage(QtWidgets.QWidget):
 
             return
 
-        # TODO: Make sure this code works later
-        self._thumbnail_label.setPixmap(QtGui.QPixmap(thumbnail))
+        pixmap = self._make_thumbnail_pixmap(thumbnail)
+        self._thumbnail_label.setPixmap(pixmap)
         self._thumbnail_switcher.setCurrentWidget(self._thumbnail_label)
 
 

@@ -84,14 +84,19 @@ class Artwork:
         """
         # NOTE: The Met's database keeps thumbnail information separate from
         # the database because the images are large. So we separately cache it.
+        #
+        if thumbnail_url := self.get_thumbnail_url():
+            return _read_thumbnail_data(thumbnail_url)
+
+        return None
+
+    def get_thumbnail_url(self) -> str | None:
+        """Get the HTTP/S URL to a downloadable thumbnail, if any."""
         if not self._details:
             self.precompute_details()
             self._details = typing.cast(met_get.ObjectDetails, self._details)
 
-        if not self._details.thumbnail_url:
-            return None
-
-        return _read_thumbnail_data(self._details.thumbnail_url)
+        return self._details.thumbnail_url
 
     def get_title(self) -> str:
         """Get the artwork name / title."""

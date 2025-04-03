@@ -552,6 +552,13 @@ class Widget(
         self._thread = QtCore.QThread(parent=self)
         self._worker.moveToThread(self._thread)
 
+        self._filter_menu = QtWidgets.QMenu(parent=self._filter_type)
+        self._artwork_with_image_only_action = self._filter_menu.addAction(
+            "Has Images Only"
+        )
+        self._artwork_with_image_only_action.setCheckable(True)
+        self._artwork_with_image_only_action.triggered.connect(self._invalidate_filter)
+
         top = QtWidgets.QHBoxLayout()
         top.addWidget(self._filter_type)
         top.addWidget(self._filter_line)
@@ -575,6 +582,9 @@ class Widget(
 
     def _initialize_default_settings(self) -> None:
         """Set the default appearance of child widgets."""
+        self._filter_menu.setToolTipsVisible(True)
+        self._filter_type.setMenu(self._filter_menu)
+
         common_qt.initialize_framed_label(self._no_artwork_label)
         common_qt.initialize_framed_label(self._details_no_selection_label)
         self._artwork_splitter.setHandleWidth(25)  # Arbitrary, thick value
@@ -595,6 +605,10 @@ class Widget(
 
         self._model_debouncer.setInterval(100)  # NOTE: Wait 0.1 sec between refreshes
         self._model_debouncer.setSingleShot(True)
+
+        self._artwork_with_image_only_action.setToolTip(
+            "If enabled, only entries that have a thumbnail will be shown."
+        )
 
         self._filter_type.setToolTip("Press this to filter by artwork-type.")
         self._filter_line.setToolTip("Type the name of the Work of Art here.")
@@ -728,6 +742,34 @@ class Widget(
 
         """
 
+        def _has_image(index: QtCore.QModelIndex) -> bool:
+            if not self._artwork_with_image_only_action.isChecked():
+                return False  # Do not filter (show the ``index``)
+
+            source = iterbot.get_lowest_source(index.model())
+            source_index = iterbot.map_to_source_recursively(index, source)
+            thumbnail_index = source_index.siblingAtColumn(art_model.Column.thumbnail)
+            thumbnail: str | None = None
+
+            if not thumbnail_index.isValid():
+                _LOGGER.error(
+                    'Index "%s" has no thumbnail. Can\'t continue. '
+                    "This should never happen and it's a bug, please fix!",
+                    source_index,
+                )
+
+                return False
+
+            thumbnail = typing.cast(
+                str | None,
+                thumbnail_index.data(QtCore.Qt.DisplayRole),
+            )
+
+            if thumbnail:
+                return False  # Do not filter (show the ``index``)
+
+            return True  # No thumbnail was found. Filter the index out.
+
         def _by_name(index: QtCore.QModelIndex) -> bool:
             title_index = index.siblingAtColumn(art_model.Column.title)
 
@@ -753,7 +795,10 @@ class Widget(
         deferred_proxy.setSourceModel(model)
         mask_proxy = _MaskedDataProxy(parent=self)
         mask_proxy.setSourceModel(deferred_proxy)
-        sorter_proxy = _ArtworkSortFilterProxy(filter_functions=[_by_name], parent=self)
+        sorter_proxy = _ArtworkSortFilterProxy(
+            filter_functions=[_by_name, _has_image],
+            parent=self,
+        )
         sorter_proxy.setSourceModel(mask_proxy)
 
         # NOTE: ``needs_invalidate`` can be spammy. So if ``needs_invalidate`` gets
