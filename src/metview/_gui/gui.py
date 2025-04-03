@@ -207,7 +207,13 @@ class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
         return self._current_row_count[parent]
 
 
-class _MaskedDataProxy(PySide_QtCore.QIdentityProxyModel):
+class _MaskedDataProxy(
+    # NOTE: This cast is a bit complex. In short - Qt.py doesn't define
+    # QIdentityProxyModel (but we really need it). And mypy thinks the two types are
+    # incompatible. They actually are compatible but mypy doesn't know it.
+    #
+    typing.cast(QtCore.QAbstractProxyModel, PySide_QtCore.QIdentityProxyModel),  # type: ignore[misc]
+):
     """A proxy that masks and batches requests to The Met's REST API.
 
     Qt does not allow us developers to decide when and how often its MVC model data is
@@ -808,7 +814,7 @@ def _get_artwork_source_model(proxy: QtCore.QAbstractItemModel) -> art_model.Mod
     raise RuntimeError(f'Expected a art_model.Model source but got "{source}" instead.')
 
 
-def _group_nth(items: typing.Sequence[T], max: int) -> list[T]:
+def _group_nth(items: list[T], max: int) -> list[list[T]]:
     """Group a list of items into sublists of max length max.
 
     If ``items`` does not divide evenly into ``max``, the last subgroup will
@@ -829,4 +835,4 @@ def _group_nth(items: typing.Sequence[T], max: int) -> list[T]:
     if max <= 0:
         raise ValueError(f'Max "{max}" must be 0-or-more.')
 
-    return [items[i:i + max] for i in range(0, len(items), max)]
+    return [items[index : index + max] for index in range(0, len(items), max)]

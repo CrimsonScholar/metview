@@ -4,6 +4,8 @@ import functools
 import textwrap
 import typing
 
+import requests
+
 from ..._restapi import met_get, met_get_type
 
 
@@ -22,6 +24,14 @@ class Artwork:
         self._identifier = identifier
         self._details: met_get.ObjectDetails | None = None
 
+    def _has_thumbnail(self) -> bool:
+        """Check if a thumbnail should exist without querying the thumbnail data."""
+        if not self._details:
+            self.precompute_details()
+            self._details = typing.cast(met_get.ObjectDetails, self._details)
+
+        return bool(self._details.thumbnail_url)
+
     def is_details_populated(self) -> bool:
         """Check if this instance has most of its label data yet."""
         return bool(self._details)
@@ -34,7 +44,7 @@ class Artwork:
             Artist: {self.get_artist() or "<No artist name found>"}
             Date: {self.get_datetime_range()!s}
             Classification: {self.get_classification() or "<No classification found>"}
-            Has Thumbnail: {bool(self.get_thumbnail_data())}
+            Has Thumbnail: {bool(self._has_thumbnail())}
             ID: {self._identifier!r}"""
         )
 
@@ -64,7 +74,7 @@ class Artwork:
         return self._details.classification
 
     @functools.lru_cache()
-    def get_thumbnail_data(self) -> str | None:
+    def get_thumbnail_data(self) -> bytes | None:
         """Search this instance for a small image so we can load it as a QPixmap later.
 
         Returns:
@@ -124,7 +134,7 @@ class Artwork:
         return f"{self.__class__.__name__}(identifier={self._identifier!r})"
 
 
-def _read_thumbnail_data(url: str) -> str | None:
+def _read_thumbnail_data(url: str) -> bytes | None:
     """Search ``url`` for thumbnail data so we can load it as a QPixmap later.
 
     Args:
@@ -135,5 +145,9 @@ def _read_thumbnail_data(url: str) -> str | None:
         If ``url`` is not readable, ``None`` is returned.
 
     """
-    # TODO: Finish this later
-    raise NotImplementedError("TODO: Finish this later")
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        raise ConnectionError(f'URL "{url}" is unreadable. Got "{response}" response.')
+
+    return response.content

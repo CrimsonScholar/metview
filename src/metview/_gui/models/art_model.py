@@ -1,6 +1,7 @@
 """The MVC model that interacts between The Met's API and Qt."""
 
 import enum
+import logging
 import typing
 
 from Qt import QtCore
@@ -15,6 +16,7 @@ _DATETIME_TOOLTIP = (
     "a date range is given."
 )
 _TITLE_TOOLTIP = "The name of the artwork, if any"
+_LOGGER = logging.getLogger(__name__)
 
 
 class Column(enum.IntEnum):
@@ -45,7 +47,7 @@ class Model(QtCore.QAbstractTableModel):
 
     """
 
-    _columns = Column.__members__.values()
+    _columns = frozenset(value.value for value in Column.__members__.values())
     artwork_role = QtCore.Qt.UserRole
     data_role = QtCore.Qt.UserRole + 1
 
@@ -156,7 +158,7 @@ class Model(QtCore.QAbstractTableModel):
         self,
         index: QtCore.QModelIndex,
         role: QtCore.Qt.ItemDataRole = QtCore.Qt.DisplayRole,
-    ) -> str | model_type.Artwork | met_get_type.DatetimeRange | None:
+    ) -> str | bytes | model_type.Artwork | met_get_type.DatetimeRange | None:
         """Get any relevant data from ``index`` and show ``role``.
 
         Args:
@@ -213,7 +215,20 @@ class Model(QtCore.QAbstractTableModel):
 
         if column == Column.thumbnail:
             if role == self.data_role:
-                return self._get_artwork(index).get_thumbnail_data()
+                try:
+                    return self._get_artwork(index).get_thumbnail_data()
+                except ConnectionError:
+                    _LOGGER.exception(
+                        'Index "%s" defines a thumbnail but we could not read it.'
+                    )
+
+                    return None
+                except Exception:
+                    _LOGGER.exception(
+                        'Index "%s" may have thumbnail but we could not read it.'
+                    )
+
+                    return None
 
             if role == QtCore.Qt.ToolTipRole:
                 return "The raw thumbnail bytes to load into an image. Be careful!"
