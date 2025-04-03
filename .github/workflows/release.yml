@@ -31,7 +31,7 @@ jobs:
           python -m pip install py2app
 
       - name: Build macOS App Bundle
-        run: python setup.py py2app
+        run: python setup.py py2app --includes Qt.py
 
       - name: Rename App Bundle
         run: mv dist/metview.app dist/metview-${{ matrix.python-version }}.app
