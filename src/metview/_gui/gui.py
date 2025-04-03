@@ -533,7 +533,6 @@ class Widget(
         self._artwork_splitter.addWidget(self._artwork_view)
         self._artwork_splitter.addWidget(self._details_switcher)
 
-        # TODO: Add a switcher for when we're querying artwork data
         self._worker = threader.ArtQueryWorker()
         self._thread = QtCore.QThread(parent=self)
         self._worker.moveToThread(self._thread)
