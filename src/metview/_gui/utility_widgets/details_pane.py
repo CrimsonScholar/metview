@@ -157,16 +157,30 @@ class DetailsPane(QtWidgets.QTabWidget):  # pylint: disable=too-few-public-metho
         """
         self.clear()
 
+        maximum_length = 10
+
         # TODO: Make sure this looks good even if titles are rathger long
         # + lots of ``artworks`` selected at-once.
         #
         for index in indices:
-            self.addTab(
-                _DetailsPage(index), _get_display(index, art_model.Column.title)
+            label = _get_display(index, art_model.Column.title)
+
+            if len(label) > maximum_length:
+                label = label[:maximum_length] + "..."
+
+            self.addTab(_DetailsPage(index), label)
+            tab_index = self.count() - 1
+            self.setTabToolTip(
+                tab_index,
+                _get_display(index, art_model.Column.title, QtCore.Qt.ToolTipRole),
             )
 
 
-def _get_display(index: QtCore.QModelIndex, column: int) -> str:
+def _get_display(
+    index: QtCore.QModelIndex,
+    column: int,
+    role: QtCore.Qt.ItemDataRole=QtCore.Qt.DisplayRole,
+) -> str:
     """Get the user-display text starting from ``index``.
 
     Args:
@@ -187,4 +201,4 @@ def _get_display(index: QtCore.QModelIndex, column: int) -> str:
             f'Cannot get display text, "{index} / {column}" has no valid sibling.',
         )
 
-    return typing.cast(str, sibling.data(QtCore.Qt.DisplayRole))
+    return typing.cast(str, sibling.data(role))
