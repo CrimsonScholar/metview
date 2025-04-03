@@ -143,8 +143,8 @@ class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
         #
         self._fetch_limit = 80
 
-        self._current_row_count: dict[QtCore.QModelIndex, int] = {}
-        self._real_row_count: dict[QtCore.QModelIndex, int] = {}
+        self._current_row_count: dict[QtCore.QPersistentModelIndex, int] = {}
+        self._real_row_count: dict[QtCore.QPersistentModelIndex, int] = {}
 
     def canFetchMore(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> bool:
         """Check if we have seen all of the rows from ``parent`` yet, or not.
@@ -156,12 +156,13 @@ class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
             If there are no more rows to see / populate, return ``False``.
 
         """
+        persistent = _persist(parent)
         # NOTE: We always need this line
-        self._current_row_count.setdefault(parent, 0)
+        self._current_row_count.setdefault(persistent, 0)
         # NOTE: Rarely, canFetchMore runs before rowCount. So we add this just in case.
-        self._real_row_count.setdefault(parent, 0)
+        self._real_row_count.setdefault(persistent, 0)
 
-        return self._current_row_count[parent] < self._real_row_count[parent]
+        return self._current_row_count[persistent] < self._real_row_count[persistent]
 
     def fetchMore(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> None:
         """Add more rows to ``parent``. At least 1, up to the fetch limit.
@@ -170,15 +171,16 @@ class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
             parent: Some Qt source location to check rows for.
 
         """
-        current = self._current_row_count[parent]
-        total_remainder = self._real_row_count[parent] - current
+        persistent = _persist(parent)
+        current = self._current_row_count[persistent]
+        total_remainder = self._real_row_count[persistent] - current
         to_fetch = min(self._fetch_limit, total_remainder)
 
         self.beginInsertRows(parent, current, current + to_fetch)
 
-        start = self._current_row_count[parent]
-        self._current_row_count[parent] += self._fetch_limit
-        end = self._current_row_count[parent]
+        start = self._current_row_count[persistent]
+        self._current_row_count[persistent] += self._fetch_limit
+        end = self._current_row_count[persistent]
 
         self.endInsertRows()
 
@@ -199,13 +201,14 @@ class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
             The number of rows (from the start this will be 0. We add more rows later).
 
         """
+        persistent = _persist(parent)
         # NOTE: rowCount gets called before the fetch-related methods so we use this
         # opportunity to get the real size. We will need it for later.
         #
-        self._real_row_count[parent] = super().rowCount(parent)
-        self._current_row_count.setdefault(parent, 0)
+        self._real_row_count[persistent] = super().rowCount(parent)
+        self._current_row_count.setdefault(persistent, 0)
 
-        return self._current_row_count[parent]
+        return self._current_row_count[persistent]
 
 
 class _MaskedDataProxy(QtCore.QIdentityProxyModel):
@@ -353,7 +356,8 @@ class _MaskedDataProxy(QtCore.QIdentityProxyModel):
 
                 return
 
-            self.dataChanged.emit(start, end)
+            source = start.model()
+            source.dataChanged.emit(start, end)
             thread.quit()
             self.needs_invalidate.emit()
 
@@ -426,14 +430,18 @@ class _MaskedDataProxy(QtCore.QIdentityProxyModel):
                 chunk=10,
             )
         ):
+            start_index = qt_indices[0]
+            end_row_index = qt_indices[-1]
+            model = end_row_index.model()
+            end_index = _get_end_index(end_row_index)
             worker = threader.QueryArtworkDetailsWorker(qt_indices)
             thread = QtCore.QThread(parent=self)
             thread.started.connect(worker.run)
             worker.finished.connect(
                 functools.partial(
                     _update_all,
-                    QtCore.QPersistentModelIndex(qt_indices[0]),
-                    QtCore.QPersistentModelIndex(qt_indices[-1]),
+                    _persist(start_index),
+                    _persist(end_index),
                     thread,
                 )
             )
@@ -859,6 +867,21 @@ def _get_artwork_source_model(proxy: QtCore.QAbstractItemModel) -> art_model.Mod
     raise RuntimeError(f'Expected a art_model.Model source but got "{source}" instead.')
 
 
+def _get_end_index(index: QtCore.QModelIndex) -> QtCore.QModelIndex:
+    """Get the last-column index in the same row as ``index``.
+
+    Args:
+        index: Some index that might already be the end or might not.
+
+    Returns:
+        The ending index (the last column in that row).
+
+    """
+    model = index.model()
+
+    return index.siblingAtColumn(model.columnCount(index.parent()))
+
+
 def _group_nth(items: list[T], max: int) -> list[list[T]]:
     """Group a list of items into sublists of max length max.
 
@@ -881,3 +904,21 @@ def _group_nth(items: list[T], max: int) -> list[list[T]]:
         raise ValueError(f'Max "{max}" must be 0-or-more.')
 
     return [items[index : index + max] for index in range(0, len(items), max)]
+
+
+def _persist(
+    index: QtCore.QModelIndex | QtCore.QPersistentModelIndex,
+) -> QtCore.QPersistentModelIndex:
+    """Convert ``index`` into a Qt index that we can store safely in Python objects.
+
+    Args:
+        index: Some source or proxy Qt location.
+
+    Returns:
+        The persistent version of ``index``.
+
+    """
+    if isinstance(index, QtCore.QPersistentModelIndex):
+        return index
+
+    return QtCore.QPersistentModelIndex(index)
