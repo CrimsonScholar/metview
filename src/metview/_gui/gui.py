@@ -23,6 +23,8 @@ _DEFAULT_LOADING_MESSAGE = "Loading..."
 _LOGGER = logging.getLogger(__name__)
 T = typing.TypeVar("T")
 SizedT = typing.TypeVar("SizedT", bound=typing.Sized)
+_INDEX_TYPES = QtCore.QModelIndex | QtCore.QPersistentModelIndex
+_DISPLAY_ROLE = QtCore.Qt.ItemDataRole.DisplayRole
 
 
 class _ArtworkSortFilterProxy(QtCore.QSortFilterProxyModel):
@@ -51,9 +53,7 @@ class _ArtworkSortFilterProxy(QtCore.QSortFilterProxyModel):
 
         self._filter_functions = filter_functions or []
 
-    def filterAcceptsRow(
-        self, source_row: int, source_parent: QtCore.QModelIndex
-    ) -> bool:
+    def filterAcceptsRow(self, source_row: int, source_parent: _INDEX_TYPES) -> bool:
         """Filter the row ``source_row`` in ``source_parent``, if needed.
 
         Args:
@@ -76,7 +76,7 @@ class _ArtworkSortFilterProxy(QtCore.QSortFilterProxyModel):
 
         return True
 
-    def lessThan(self, left: QtCore.QModelIndex, right: QtCore.QModelIndex) -> bool:
+    def lessThan(self, left: _INDEX_TYPES, right: _INDEX_TYPES) -> bool:
         """Check if ``left`` actually comes before ``right`` when both are sorted.
 
         Args:
@@ -89,8 +89,8 @@ class _ArtworkSortFilterProxy(QtCore.QSortFilterProxyModel):
 
         """
 
-        def _get_default_text(index: QtCore.QModelIndex) -> str:
-            return index.data(QtCore.Qt.DisplayRole) or ""
+        def _get_default_text(index: _INDEX_TYPES) -> str:
+            return index.data(_DISPLAY_ROLE) or ""
 
         column = left.column()
 
@@ -146,7 +146,7 @@ class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
         self._current_row_count: dict[QtCore.QPersistentModelIndex, int] = {}
         self._real_row_count: dict[QtCore.QPersistentModelIndex, int] = {}
 
-    def canFetchMore(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> bool:
+    def canFetchMore(self, parent: _INDEX_TYPES = QtCore.QModelIndex()) -> bool:
         """Check if we have seen all of the rows from ``parent`` yet, or not.
 
         Args:
@@ -164,7 +164,7 @@ class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
 
         return self._current_row_count[persistent] < self._real_row_count[persistent]
 
-    def fetchMore(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> None:
+    def fetchMore(self, parent: _INDEX_TYPES = QtCore.QModelIndex()) -> None:
         """Add more rows to ``parent``. At least 1, up to the fetch limit.
 
         Args:
@@ -191,7 +191,7 @@ class _DeferredLoadProxy(QtCore.QSortFilterProxyModel):
         self._current_row_count.clear()
         self._real_row_count.clear()
 
-    def rowCount(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
+    def rowCount(self, parent: _INDEX_TYPES = QtCore.QModelIndex()) -> int:
         """Get the current row count that we have already populated.
 
         Args:
@@ -256,7 +256,7 @@ class _MaskedDataProxy(QtCore.QIdentityProxyModel):
             tuple[QtCore.QThread, threader.QueryArtworkDetailsWorker]
         ] = []
 
-    def _is_details_populated(self, index: QtCore.QModelIndex) -> bool:
+    def _is_details_populated(self, index: _INDEX_TYPES) -> bool:
         """Check if ``index`` has been partially or fully loaded with data.
 
         Args:
@@ -280,8 +280,8 @@ class _MaskedDataProxy(QtCore.QIdentityProxyModel):
 
     def data(  # pylint: disable=too-many-return-statements
         self,
-        index: QtCore.QModelIndex,
-        role: QtCore.Qt.ItemDataRole = QtCore.Qt.DisplayRole,
+        index: _INDEX_TYPES,
+        role: int = _DISPLAY_ROLE,
     ) -> str | model_type.Artwork | met_get_type.DatetimeRange | QtGui.QIcon | None:
         """Get any relevant data from ``index`` and show ``role``.
 
@@ -293,7 +293,7 @@ class _MaskedDataProxy(QtCore.QIdentityProxyModel):
             The found data, if any.
 
         """
-        if role == QtCore.Qt.DecorationRole:
+        if role == QtCore.Qt.ItemDataRole.DecorationRole:
             column = index.column()
 
             if column == 0:
@@ -302,13 +302,13 @@ class _MaskedDataProxy(QtCore.QIdentityProxyModel):
 
             return None
 
-        if role == QtCore.Qt.ToolTipRole:
+        if role == QtCore.Qt.ItemDataRole.ToolTipRole:
             if not self._is_details_populated(index):
                 return _DEFAULT_LOADING_MESSAGE
 
             return super().data(index, role)  # type: ignore
 
-        if role == QtCore.Qt.DisplayRole:
+        if role == _DISPLAY_ROLE:
             if not self._is_details_populated(index):
                 column = index.column()
 
@@ -496,9 +496,16 @@ class Window(QtWidgets.QWidget):  # pylint: disable=too-few-public-methods
 
         self.setWindowTitle("MetViewer")
         self.setWindowIcon(QtGui.QIcon(f"{constant.QT_PREFIX}:window.svg"))
-        self.setWindowFlag(QtCore.Qt.Window)
+        self.setWindowFlag(QtCore.Qt.WindowType.Window)
 
-        self._widget.layout().setContentsMargins(0, 0, 0, 0)
+        layout = self._widget.layout()
+
+        if not layout:
+            raise RuntimeError(
+                f'Artwork widget "{self._widget}" has no layout. This is a bug.'
+            )
+
+        layout.setContentsMargins(0, 0, 0, 0)
         self._close_button.setToolTip("Press this to close this GUI window.")
         self._close_button.clicked.connect(self.close)
 
@@ -621,8 +628,12 @@ class Widget(
             "and you will see a table with the data.",
         )
         self._artwork_view.horizontalHeader().setStretchLastSection(True)
-        self._artwork_view.setSelectionBehavior(QtWidgets.QListView.SelectRows)
-        self._artwork_view.setSelectionMode(QtWidgets.QListView.ExtendedSelection)
+        self._artwork_view.setSelectionBehavior(
+            QtWidgets.QListView.SelectionBehavior.SelectRows
+        )
+        self._artwork_view.setSelectionMode(
+            QtWidgets.QListView.SelectionMode.ExtendedSelection
+        )
         self._artwork_view.verticalHeader().hide()
 
         self._model_debouncer.setInterval(100)  # NOTE: Wait 0.1 sec between refreshes
@@ -781,10 +792,7 @@ class Widget(
 
                 return False
 
-            thumbnail = typing.cast(
-                str | None,
-                thumbnail_index.data(QtCore.Qt.DisplayRole),
-            )
+            thumbnail = typing.cast(str | None, thumbnail_index.data(_DISPLAY_ROLE))
 
             if thumbnail:
                 return False  # Do not filter (show the ``index``)
@@ -806,7 +814,7 @@ class Widget(
 
                 return False  # Do not filter (show the ``index``)
 
-            title = typing.cast(str, title_index.data(QtCore.Qt.DisplayRole))
+            title = typing.cast(str, title_index.data(_DISPLAY_ROLE))
 
             return text.lower() not in title.lower()
 
@@ -834,7 +842,7 @@ class Widget(
         self._artwork_view.setModel(sorter_proxy)
         self._artwork_view.setSortingEnabled(True)
         self._artwork_view.sortByColumn(
-            art_model.Column.title, QtCore.Qt.AscendingOrder
+            art_model.Column.title, QtCore.Qt.SortOrder.AscendingOrder
         )
         selection_model = self._artwork_view.selectionModel()
 

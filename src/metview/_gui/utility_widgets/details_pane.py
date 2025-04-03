@@ -9,6 +9,7 @@ from ..common import common_qt, iterbot
 from ..models import art_model, model_type
 
 _LOGGER = logging.getLogger(__name__)
+_DISPLAY_ROLE = QtCore.Qt.ItemDataRole.DisplayRole
 
 
 class _DetailsPage(QtWidgets.QWidget):
@@ -60,12 +61,11 @@ class _DetailsPage(QtWidgets.QWidget):
         summary_layout.addWidget(self._medium_label, 4, 0)
         summary_layout.addWidget(self._medium_line, 4, 1)
         main_layout.addLayout(summary_layout)
-        main_layout.addWidget(self._thumbnail_switcher, alignment=QtCore.Qt.AlignCenter)
-        main_layout.addItem(
-            QtWidgets.QSpacerItem(
-                1, 1, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding
-            ),
+        main_layout.addWidget(
+            self._thumbnail_switcher, alignment=QtCore.Qt.AlignmentFlag.AlignCenter
         )
+        expanding = QtWidgets.QSizePolicy.Policy.Expanding
+        main_layout.addItem(QtWidgets.QSpacerItem(1, 1, expanding, expanding))
 
         self._initialize_default_settings()
         self.set_current_artwork(index)
@@ -114,7 +114,7 @@ class _DetailsPage(QtWidgets.QWidget):
 
         if pixmap.height() > maximum_height:
             pixmap = pixmap.scaledToHeight(
-                maximum_height, QtCore.Qt.SmoothTransformation
+                maximum_height, QtCore.Qt.TransformationMode.SmoothTransformation
             )
 
         return pixmap
@@ -200,14 +200,16 @@ class DetailsPane(QtWidgets.QTabWidget):  # pylint: disable=too-few-public-metho
             tab_index = self.count() - 1
             self.setTabToolTip(
                 tab_index,
-                _get_display(index, art_model.Column.title, QtCore.Qt.ToolTipRole),
+                _get_display(
+                    index, art_model.Column.title, QtCore.Qt.ItemDataRole.ToolTipRole
+                ),
             )
 
 
 def _get_display(
     index: QtCore.QModelIndex,
     column: int,
-    role: QtCore.Qt.ItemDataRole = QtCore.Qt.DisplayRole,
+    role: QtCore.Qt.ItemDataRole = _DISPLAY_ROLE,
 ) -> str:
     """Get the user-display text starting from ``index``.
 

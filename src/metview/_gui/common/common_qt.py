@@ -11,7 +11,7 @@ def initialize_framed_label(widget: QtWidgets.QLabel) -> None:
 
     """
     widget.setWordWrap(True)
-    widget.setAlignment(QtCore.Qt.AlignCenter)
-    widget.setFrameStyle(QtWidgets.QLabel.Box | QtWidgets.QLabel.Plain)
+    widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+    widget.setFrameStyle(QtWidgets.QLabel.Box | QtWidgets.QLabel.Plain)  # type: ignore
     # NOTE: This is an arbitrary value that "looks nice" in the GUI
     widget.setStyleSheet("QLabel { padding: 10px; }")

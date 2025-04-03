@@ -16,6 +16,11 @@ _DATETIME_TOOLTIP = (
     "a date range is given."
 )
 _TITLE_TOOLTIP = "The name of the artwork, if any"
+
+_INDEX_TYPES = QtCore.QModelIndex | QtCore.QPersistentModelIndex
+_DISPLAY_ROLE = QtCore.Qt.ItemDataRole.DisplayRole
+_TOOLTIP_ROLE = QtCore.Qt.ItemDataRole.ToolTipRole
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -49,8 +54,8 @@ class Model(QtCore.QAbstractTableModel):
     """
 
     _columns = frozenset(value.value for value in Column.__members__.values())
-    artwork_role = QtCore.Qt.UserRole
-    data_role = QtCore.Qt.UserRole + 1
+    artwork_role = QtCore.Qt.ItemDataRole.UserRole
+    data_role = QtCore.Qt.ItemDataRole.UserRole + 1
 
     def __init__(
         self,
@@ -72,7 +77,7 @@ class Model(QtCore.QAbstractTableModel):
         self._identifiers = identifiers
         self._cache: dict[int, model_type.Artwork] = {}
 
-    def _get_artwork(self, index: QtCore.QModelIndex) -> model_type.Artwork:
+    def _get_artwork(self, index: _INDEX_TYPES) -> model_type.Artwork:
         """Get the real artwork data from `index``.
 
         Args:
@@ -96,7 +101,7 @@ class Model(QtCore.QAbstractTableModel):
         self,
         section: int,
         orientation: QtCore.Qt.Orientation,
-        role: QtCore.Qt.ItemDataRole = QtCore.Qt.DisplayRole,
+        role: int = _DISPLAY_ROLE,
     ) -> str | None:
         """Describe the columns of this model.
 
@@ -109,32 +114,32 @@ class Model(QtCore.QAbstractTableModel):
             The header text, if any.
 
         """
-        if orientation == QtCore.Qt.Vertical:
+        if orientation == QtCore.Qt.Orientation.Vertical:
             return None
 
         if section == Column.title:
-            if role == QtCore.Qt.DisplayRole:
+            if role == _DISPLAY_ROLE:
                 return "Title"
 
-            if role == QtCore.Qt.ToolTipRole:
+            if role == _TOOLTIP_ROLE:
                 return _TITLE_TOOLTIP
 
             return None
 
         if section == Column.datetime:
-            if role == QtCore.Qt.DisplayRole:
+            if role == _DISPLAY_ROLE:
                 return "Date"
 
-            if role == QtCore.Qt.ToolTipRole:
+            if role == _TOOLTIP_ROLE:
                 return _DATETIME_TOOLTIP
 
             return None
 
         if section == Column.artist:
-            if role == QtCore.Qt.DisplayRole:
+            if role == _DISPLAY_ROLE:
                 return "Artist"
 
-            if role == QtCore.Qt.ToolTipRole:
+            if role == _TOOLTIP_ROLE:
                 return _ARTIST_TOOLTIP
 
             return None
@@ -142,7 +147,7 @@ class Model(QtCore.QAbstractTableModel):
         return None
 
     def columnCount(
-        self, parent: QtCore.QModelIndex = QtCore.QModelIndex()
+        self, parent: _INDEX_TYPES = QtCore.QModelIndex()
     ) -> int:  # pylint: disable=invalid-name
         """Get the number of columns to show in a view by default.
 
@@ -157,8 +162,8 @@ class Model(QtCore.QAbstractTableModel):
 
     def data(  # pylint: disable=too-many-return-statements
         self,
-        index: QtCore.QModelIndex,
-        role: QtCore.Qt.ItemDataRole = QtCore.Qt.DisplayRole,
+        index: _INDEX_TYPES,
+        role: int = _DISPLAY_ROLE,
     ) -> str | bytes | model_type.Artwork | met_get_type.DatetimeRange | None:
         """Get any relevant data from ``index`` and show ``role``.
 
@@ -175,23 +180,23 @@ class Model(QtCore.QAbstractTableModel):
         if role == self.artwork_role:
             return self._get_artwork(index)
 
-        if role == QtCore.Qt.ToolTipRole:
+        if role == _TOOLTIP_ROLE:
             return self._get_artwork(index).get_tooltip()
 
         if column == Column.title:
-            if role == QtCore.Qt.DisplayRole:
+            if role == _DISPLAY_ROLE:
                 return self._get_artwork(index).get_title() or "<No title found>"
 
             if role == self.data_role:
                 return self._get_artwork(index).get_title()
 
-            if role == QtCore.Qt.ToolTipRole:
+            if role == _TOOLTIP_ROLE:
                 return _TITLE_TOOLTIP
 
             return None
 
         if column == Column.datetime:
-            if role == QtCore.Qt.DisplayRole:
+            if role == _DISPLAY_ROLE:
                 artwork = self._get_artwork(index)
                 start, end = artwork.get_datetime_range()
 
@@ -200,7 +205,7 @@ class Model(QtCore.QAbstractTableModel):
 
                 return f"{start} - {end}"
 
-            if role == QtCore.Qt.ToolTipRole:
+            if role == _TOOLTIP_ROLE:
                 return _DATETIME_TOOLTIP
 
             if role == self.data_role:
@@ -209,19 +214,19 @@ class Model(QtCore.QAbstractTableModel):
             return None
 
         if column == Column.artist:
-            if role == QtCore.Qt.DisplayRole:
+            if role == _DISPLAY_ROLE:
                 return self._get_artwork(index).get_artist() or "<No artist found>"
 
             if role == self.data_role:
                 return self._get_artwork(index).get_artist()
 
-            if role == QtCore.Qt.ToolTipRole:
+            if role == _TOOLTIP_ROLE:
                 return _ARTIST_TOOLTIP
 
             return None
 
         if column == Column.thumbnail:
-            if role == QtCore.Qt.DisplayRole:
+            if role == _DISPLAY_ROLE:
                 return self._get_artwork(index).get_thumbnail_url()
 
             if role == self.data_role:
@@ -240,28 +245,28 @@ class Model(QtCore.QAbstractTableModel):
 
                     return None
 
-            if role == QtCore.Qt.ToolTipRole:
+            if role == _TOOLTIP_ROLE:
                 return "The raw thumbnail bytes to load into an image. Be careful!"
 
             return None
 
         if column == Column.classification:
-            if role == QtCore.Qt.DisplayRole:
+            if role == _DISPLAY_ROLE:
                 return (
                     self._get_artwork(index).get_classification()
                     or "<No classification>"
                 )
 
-            if role == QtCore.Qt.ToolTipRole:
+            if role == _TOOLTIP_ROLE:
                 return "The type of artwork"
 
             return None
 
         if column == Column.medium:
-            if role == QtCore.Qt.DisplayRole:
+            if role == _DISPLAY_ROLE:
                 return self._get_artwork(index).get_medium() or "<No medium>"
 
-            if role == QtCore.Qt.ToolTipRole:
+            if role == _TOOLTIP_ROLE:
                 return "The material or method used to create the artwork"
 
             return None
@@ -272,7 +277,7 @@ class Model(QtCore.QAbstractTableModel):
         self,
         row: int,
         column: int,
-        parent: QtCore.QModelIndex = QtCore.QModelIndex(),
+        parent: _INDEX_TYPES = QtCore.QModelIndex(),
     ) -> QtCore.QModelIndex:
         """Create a Qt index for ``row`` and ``column`` underneath ``parent``.
 
@@ -296,7 +301,7 @@ class Model(QtCore.QAbstractTableModel):
         return self.createIndex(row, column, identifier)
 
     def rowCount(
-        self, _: QtCore.QModelIndex = QtCore.QModelIndex()
+        self, _: _INDEX_TYPES = QtCore.QModelIndex()
     ) -> int:  # pylint: disable=invalid-name
         """Get the rows to show in the GUI.
 

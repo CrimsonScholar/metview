@@ -130,7 +130,7 @@ def _show_gui(namespace: _ShowGuiArguments) -> None:
 
     application = typing.cast(
         QtWidgets.QApplication,
-        QtWidgets.QApplication.instance() or QtWidgets.QApplication([]),  # type: ignore
+        QtWidgets.QApplication.instance() or QtWidgets.QApplication([]),
     )
     window = gui.Window(search_term=namespace.search_term)
     application.setStyle("macOS")
