@@ -4,7 +4,7 @@ import enum
 import logging
 import typing
 
-from PySide6 import QtCore
+from PySide2 import QtCore
 
 from ..._restapi import met_get_type
 from . import model_type

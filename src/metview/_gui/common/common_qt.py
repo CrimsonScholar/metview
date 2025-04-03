@@ -1,6 +1,6 @@
 """Basic functions that make working with Qt easier."""
 
-from PySide6 import QtCore, QtWidgets
+from PySide2 import QtCore, QtWidgets
 
 
 def initialize_framed_label(widget: QtWidgets.QLabel) -> None:

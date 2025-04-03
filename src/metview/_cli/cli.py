@@ -5,7 +5,7 @@ import dataclasses
 import logging
 import typing
 
-from PySide6 import QtWidgets
+from PySide2 import QtWidgets
 
 from .._core import constant
 from .._gui import gui
