@@ -31,10 +31,10 @@ jobs:
       - name: Build macOS App Bundle
         run: python setup.py py2app
 
-      - name: Zip The App Bundle
-        run: zip -r dist/metview-python-${{ matrix.python-version }}.zip dist/metview.app
+      - name: Compress (Tar) The App Bundle
+        run: tar -czf dist/metview-python-${{ matrix.python-version }}.app.tar.gz metview.app -C dist
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/metview-python-${{ matrix.python-version }}.zip
+          files: dist/metview-python-${{ matrix.python-version }}.app.tar.gz
