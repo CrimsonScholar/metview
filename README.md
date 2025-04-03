@@ -15,12 +15,22 @@ That's all for now!
 `metview` lets you easily view, search, filter, and browse great Works of Art from
 [The Metropolitan Museum Of Art](The Metropolitan Museum Of Art)!
 
+> [!NOTE]
+> XXX: This is a fake mp4 file. The real video is examples/demo.mp4
 
-## How To Use
-TODO: Fill this out later
+https://user-images.githubusercontent.com/12345678/demo.mp4
 
 
-### How To Use - Manually
+## How To Install
+```
+# XXX: Assuming this is uploaded to pypi or elsewhere
+python -m pip install metview
+# or
+cd {root} && python -m pip .
+```
+
+
+## How To Use - Manually
 ```sh
 python -m metview
 ```
