@@ -7,7 +7,7 @@ These functions are meant to be as generic as possible.
 import collections
 import typing
 
-from Qt import QtCore
+from PySide6 import QtCore
 
 T = typing.TypeVar("T")
 

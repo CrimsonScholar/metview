@@ -2,7 +2,7 @@
 
 import os
 
-from Qt import QtCore
+from PySide6 import QtCore
 
 from ._core import constant
 

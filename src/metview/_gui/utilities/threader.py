@@ -3,7 +3,7 @@
 import logging
 import typing
 
-from Qt import QtCore
+from PySide6 import QtCore
 
 from ..._restapi import met_get
 from ..models import art_model, model_type
