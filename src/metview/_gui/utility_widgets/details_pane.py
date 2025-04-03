@@ -179,7 +179,7 @@ class DetailsPane(QtWidgets.QTabWidget):  # pylint: disable=too-few-public-metho
 def _get_display(
     index: QtCore.QModelIndex,
     column: int,
-    role: QtCore.Qt.ItemDataRole=QtCore.Qt.DisplayRole,
+    role: QtCore.Qt.ItemDataRole = QtCore.Qt.DisplayRole,
 ) -> str:
     """Get the user-display text starting from ``index``.
 

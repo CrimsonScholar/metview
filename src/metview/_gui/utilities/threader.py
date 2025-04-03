@@ -1,3 +1,5 @@
+"""Basic classes to make Qt + multi-threading easier."""
+
 import logging
 import typing
 
@@ -31,6 +33,18 @@ class ArtQueryWorker(QtCore.QObject):
 
 
 class QueryArtworkDetailsWorker(QtCore.QObject):
+    """A Qt worker (meant to run in a QThread) that populates :class:`.Artwork` data.
+
+    By default, :class:`.Artwork` classes contain basically no data and need to
+    ask for its contents from The Met's REST API. This work populates those
+    objects in another thread so the user is not impacted.
+
+    Attributes:
+        finished:
+            A signal that emits when there is no more work left to do or the user
+            (gracefully) interrupts this worker instance.
+
+    """
 
     finished = QtCore.Signal()
 
@@ -39,6 +53,16 @@ class QueryArtworkDetailsWorker(QtCore.QObject):
         indices: typing.Sequence[QtCore.QModelIndex],
         parent: QtCore.QObject | None = None,
     ) -> None:
+        """Keep track of ``indices`` to process, later.
+
+        Args:
+            indices:
+                Some Qt source locations that, we assume, is sparse / partially
+                described. We will modify it!
+            parent:
+                An object which, if provided, holds a reference to this instance.
+
+        """
         super().__init__(parent)
 
         self._running = False
@@ -48,12 +72,21 @@ class QueryArtworkDetailsWorker(QtCore.QObject):
         self,
         index: QtCore.QModelIndex | QtCore.QPersistentModelIndex,
     ) -> None:
+        """Fill in the data for ``index``.
+
+        Args:
+            index:
+                Some Qt source location that, we assume, is sparse / partially
+                described. We will modify it!
+
+        """
         artwork = typing.cast(
             model_type.Artwork, index.data(art_model.Model.artwork_role)
         )
         artwork.precompute_details()
 
     def run(self) -> None:
+        """Populate all Artwork data in this instance (run Met REST API calls)."""
         self._running = True
 
         while self._running and self._to_run:
@@ -75,4 +108,5 @@ class QueryArtworkDetailsWorker(QtCore.QObject):
             self.finished.emit()
 
     def stop(self) -> None:
+        """Do not query any more data in this instance."""
         self._running = False

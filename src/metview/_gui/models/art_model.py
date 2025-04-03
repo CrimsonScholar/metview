@@ -238,7 +238,7 @@ class Model(QtCore.QAbstractTableModel):
         self,
         row: int,
         column: int,
-        parent: QtCore.QModelIndex=QtCore.QModelIndex(),
+        parent: QtCore.QModelIndex = QtCore.QModelIndex(),
     ) -> QtCore.QModelIndex:
         """Create a Qt index for ``row`` and ``column`` underneath ``parent``.
 
