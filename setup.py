@@ -14,7 +14,7 @@ _EXTRA_OPTIONS: dict[str, str] = {}
 
 if sys.platform == "darwin":
     _PY2APP_OPTIONS = dict(
-        packages=["PySide2", "requests"],
+        packages=["PySide6", "requests"],
         plist=dict(
             CFBundleDevelopmentRegion="en_US",
             CFBundleExecutable=_NAME,

@@ -10,7 +10,7 @@ import math
 import time
 import typing
 
-from PySide2 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from .._core import constant
 from .._restapi import met_get_type
@@ -547,6 +547,7 @@ class Widget(
         # NOTE: The top widgets
         self._filter_type = QtWidgets.QPushButton("Filter:")
         self._filter_line = QtWidgets.QLineEdit()
+        self._filter_details = QtWidgets.QPushButton("Details")
 
         # NOTE: The lower artwork + details widgets
         #

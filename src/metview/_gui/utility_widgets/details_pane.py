@@ -3,7 +3,7 @@
 import logging
 import typing
 
-from PySide2 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from ..common import common_qt, iterbot
 from ..models import art_model, model_type
